@@ -2,11 +2,13 @@
 
 namespace AigerTeam\ImageTools;
 
+use AigerTeam\ImageTools\Exceptions\FileException;
+
 /**
  * Class Image
  *
- * Класс-обёртка для изображений, предоставляющая объектный интерфейс и множество необходимых в повседневной
- * деятельности методов.
+ * Класс-обёртка для изображений, предоставляющая объектный интерфейс, позволяющий делать цепочки вызовов, и множество
+ * необходимых в повседневной деятельности методов.
  *
  * Для создания объекта этого класса можно:
  *  - передать ресурс изображения в конструктор;
@@ -52,7 +54,8 @@ class Image
     const FORMAT_GIF = 'gif';
 
     /**
-     * @var \resource Ресурс изображения.
+     * @var resource Ресурс изображения. Предполагается, что после выполнения конструктора в этом атрибуте всегда есть
+     * значение указанного типа.
      */
     protected $bitmap;
 
@@ -63,7 +66,7 @@ class Image
 
 
     /**
-     * @param \resource $bitmap DG-ресурс изображения
+     * @param resource $bitmap DG-ресурс изображения
      * @param bool $isTransparent Имеет ли переданное в $bitmap изображение прозрачность. Не существенный аргумент,
      * используется только для выбора формата при сохранении.
      * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
@@ -86,18 +89,11 @@ class Image
      */
     public function __clone()
     {
-        if( !isset( $this->bitmap ) )
-            return;
-
-        $width  = $this->getWidth();
-        $height = $this->getHeight();
-
-        $oldBitmap = $this->bitmap;
-        $newBitmap = imagecreatetruecolor( $width, $height );
-
-        imagecopy( $newBitmap, $oldBitmap, 0, 0, 0, 0, $width, $height );
-
-        $this->bitmap = $newBitmap;
+        try {
+            $this->bitmap = $this->toResource();
+        } catch ( \Exception $e ) {
+            $this->bitmap = null;
+        }
     }
 
     
@@ -149,7 +145,7 @@ class Image
      *
      * @param int|null $width Желаемая ширина изображения. Если null, то будет рассчитана из высоты с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
-     * @param int|null $height Желаемая высота изображения. Если null, то будет рассчитана из шырины с сохранением
+     * @param int|null $height Желаемая высота изображения. Если null, то будет рассчитана из ширины с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
      * @param bool $allowIncrease Позволять ли увеличивать изображение, иначе будет только уменьшаться. В любом случае
      * все остальные условия будут продолжают действовать.
@@ -161,7 +157,8 @@ class Image
      * @param float $alignVer Положение изображения по вертикали при обрезке (от 0 (виден верхний край) до 1 (виден
      * нижний край)). Влияет только если указаны ширина и высота и значение и значение аргумента $sizing равно
      * Image::SIZING_COVER.
-     * @return bool Прошло ли изменение размера успешно
+     * @return static Сам себя
+     * @throws \Exception Если не удалось изменить размер
      *
      * @see Image::SIZING_CONTAIN
      * @see Image::SIZING_COVER
@@ -175,9 +172,6 @@ class Image
         $alignHor = 0.5,
         $alignVer = 0.5
     ) {
-        if( !isset( $this->bitmap ) )
-            return false;
-
         // Проверка данных
 
         if ( is_null( $width ) && is_null( $height ) )
@@ -211,29 +205,33 @@ class Image
         );
 
         if ( !$params )
-            return true;
+            return $this;
 
 
         // Непосредственно масштабирование
         $bitmap = imagecreatetruecolor( $params[ 'dstWidth' ], $params[ 'dstHeight' ] );
         imagealphablending( $bitmap, false );
-        imagecopyresampled(
+        $result = imagecopyresampled(
             $bitmap,
             $this->bitmap,
-            0,                     0,
-            $params[ 'srcX' ],     $params[ 'srcY' ],
+            0, 0,
+            $params[ 'srcX' ], $params[ 'srcY' ],
             $params[ 'dstWidth' ], $params[ 'dstHeight' ],
             $params[ 'srcWidth' ], $params[ 'srcHeight' ] );
         imagealphablending( $bitmap, true );
         imagedestroy( $this->bitmap );
+
+        if ( !$result )
+            throw new \Exception( 'Не удалось изменить размер изображения по неизвестной причине.' );
+
         $this->bitmap = $bitmap;
 
-        return true;
+        return $this;
     }
 
 
     /**
-     * Пишет надпись на изображении.
+     * Пишет текст на изображении.
      *
      * @param string $text Текст, который нужно написать
      * @param string $font Путь к файлу шрифта, которым нужно сделать надпись, на сервере
@@ -246,7 +244,8 @@ class Image
      * @param float $alignVer Положение текста по вертикали (от 0 (снизу от указанной точки) до 1 (сверху от указанной
      * точки))
      * @param float $angle Угол поворота текста в градусах (против часовой стрелки)
-     * @return bool Удалось ли написать текст
+     * @return static Сам себя
+     * @throws \Exception Если не удалось поместить текст
      */
     function write(
         $text,
@@ -266,12 +265,15 @@ class Image
         $y -= $height * $alignVer;
         $color = static::allocateColor( $this->bitmap, $color );
 
-        return !!@imagettftext( $this->bitmap, $fontSize, $angle, $x, $y, $color, $font, $text );
+        if ( !imagettftext( $this->bitmap, $fontSize, $angle, $x, $y, $color, $font, $text ) )
+            throw new \Exception( 'Не поместить текст на изображении по неизвестной причине.' );
+
+        return $this;
     }
 
 
     /**
-     * Вставляет изображение в текущее.
+     * Вставляет указанное изображение в текущее.
      *
      * @param self $image Вставляемое изображение
      * @param int $dstX Координата X на текущем изображении, куда вставить новое. По умолчанию, 0.
@@ -282,7 +284,8 @@ class Image
      * @param int|null $dstHeight Новая Высота вставляемой области. Если null, то не меняется.
      * @param int|null $srcWidth Ширина вставляемой области вставляемого изображения. Если null, то вся ширина изображения.
      * @param int|null $srcHeight Высота вставляемой области вставляемого изображения. Если null, то вся высота изображения.
-     * @return bool Успешно ли произведена вставка
+     * @return static Сам себя
+     * @throws \Exception Если не удалось вставить изображение
      */
     function insertImage(
         self $image,
@@ -295,8 +298,8 @@ class Image
         $srcWidth  = null,
         $srcHeight = null
     ) {
-        if( !isset( $this->bitmap ) || !isset( $image->bitmap ) )
-            return false;
+        if( !isset( $image->bitmap ) )
+            throw new \Exception( 'В объекте вставляемого изображения нет данных изображения.' );
 
         if( !is_numeric( $dstX ) ) $dstX = 0;
         if( !is_numeric( $dstY ) ) $dstY = 0;
@@ -307,7 +310,7 @@ class Image
         if( !is_numeric( $dstWidth  ) ) $dstWidth  = $srcWidth;
         if( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
 
-        return imagecopyresampled(
+        $result = imagecopyresampled(
             $this->bitmap,
             $image->bitmap,
             $dstX,     $dstY,
@@ -315,26 +318,34 @@ class Image
             $dstWidth, $dstHeight,
             $srcWidth, $srcHeight
         );
+
+        if ( !$result )
+            throw new \Exception( 'Не удалось вставить изображение по неизвестной причине.' );
+
+        return $this;
     }
 
 
     /**
-     * Вращает изображение
+     * Вращает изображение.
      *
      * @param float $angle Угол, выраженный в градусах, против часовой стрелки
-     * @return bool Успешно ли выполнено вращение
+     * @param int[]|null $color Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если изображение
+     * повёрнуто на угол, не кратный 90°.
+     * @return static Сам себя
+     * @throws \Exception Если не удалось повернуть изображение
      */
-    function rotate( $angle )
+    function rotate( $angle, Array $underlay = null )
     {
-        $bitmap = imagerotate( $this->bitmap, $angle, $this->isTransparent ? imagecolorallocatealpha( $this->bitmap, 0, 0, 0, 127 ) : 0 );
+        $bitmap = imagerotate( $this->bitmap, $angle, static::allocateColor( $this->bitmap, $underlay ) );
 
         if ( !$bitmap )
-            return false;
+            throw new \Exception( 'Не удалось повернуть изображение по неизвестной причине.' );
 
         imagedestroy( $this->bitmap );
         $this->bitmap = $bitmap;
 
-        return true;
+        return $this;
     }
 
 
@@ -342,7 +353,7 @@ class Image
      * Находит доминирующие цвета на изображении алгоритмом K-средних.
      *
      * @param int $amount Количество цветов, которые нужно найти
-     * @param true $sort Производить ли сортировку выходного массива по количеству цвета на изображении
+     * @param bool $sort Производить ли сортировку выходного массива по количеству цвета на изображении
      * @param int $maxPreSize Размер, до которого уменьшается изображение, перед тем, как применить алгоритм (чем меньше,
      * тем быстрее и менее точно)
      * @param int $epsilon Погрешность, при достижении которой нужно остановить поиск (чем меньше, тем медленнее и
@@ -454,101 +465,102 @@ class Image
 
 
     /**
-     * Выводит сохранённое изображение в основной вывод. Может использоваться для отправки изображение в качестве ответа
-     * на клиент.
+     * Сохраняет изображение заданный формат и печатает его в главный вывод. Может использоваться для отправки
+     * изображение в качестве ответа на клиент.
      *
      * @param string|null $format Формат, в который нужно сохранить изображение. Если null, то будет подобран
      * автоматически. Чтобы узнать список вариантов, смотрите константы FORMAT_* этого класса.
      * @param float|null $quality Качество сохранения (от 0 до 1)
+     * @return static Сам себя
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
-     * @throws \Exception В случае непредвиденной ошибки
+     * @throws \Exception Если не удалось сохранить изображение в формат
      */
     public function display( $format = null, $quality = null )
     {
-        if ( !isset( $this->bitmap ) )
-            throw new \Exception( 'В этом объекте нет данных изображения.' );
-
         if ( empty( $format ) )
             $format = $this->getRecommendedFormat();
 
         if ( !is_numeric( $quality ) )
             $quality = 1;
 
-        switch ( $format ) {
-            case self::FORMAT_JPG:
-            case 'jpeg':
-            case 'jpg':
-                imagejpeg( $this->bitmap, null, $quality * 100 );
-                break;
-            case self::FORMAT_PNG:
-                imagesavealpha( $this->bitmap, true );
-                imagepng( $this->bitmap );
-                break;
-            default: 
-                $func = 'image' . $format;
+        if ( !static::saveImage( $this->bitmap, null, $format, $quality ) )
+            throw new \Exception( 'Не удалось сохранить файл.' );
 
-                if ( !function_exists( $func ) )
-                    throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $format . ').' );
-
-                @$func( $this->bitmap );
-                break;
-        }
+        return $this;
     }
 
 
     /**
      * Сохраняет изображение в файл.
      *
-     * @param string $path Путь к файлу (без формата и его точки) на сервере, в который нужно сохранить изображение.
-     * Например, /var/tmp/picture
+     * @param string $file Путь к файлу на сервере, в который нужно сохранить изображение
      * @param string|null $format Формат, в который нужно сохранить изображение. Если null, то будет подобран
      * автоматически. Чтобы узнать список вариантов, смотрите константы FORMAT_* этого класса.
      * @param float|null $quality Качество сохранения (от 0 до 1)
-     * @return string Полный путь к файлу включая формат, в котором он был сохранён. Например: /var/tmp/picture.jpg
+     * @return static Сам себя
+     * @throws FileException Если указанный путь недоступен для записи
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
-     * @throws \Exception В случае непредвиденной ошибки
+     * @throws \Exception Если не удалось сохранить файл
      */
-    public function toFile( $path, $format = null, $quality = null )
+    public function toFile( $file, $format = null, $quality = null )
     {
-        if ( !isset( $this->bitmap ) )
-            throw new \Exception( 'В этом объекте нет данных изображения.' );
+        // Очистка кеша информации о файле
+        try {
+            clearstatcache( true, $file );
+        } catch (\Exception $e) {
+            throw new FileException( 'Не удалось очистить кэш информации о файле. Ошибка: ' . $e->getMessage(), $file );
+        }
 
+        // Доступен ли файл для записи
+        if ( file_exists( $file ) ) {
+            if ( is_file( $file ) ) {
+                if ( !is_writable( $file ) )
+                    throw new FileException( 'Указанный файл недоступен для записи.', $file );
+            } else {
+                throw new FileException( 'Нельзя сохранить в указанный файл, потому что это не файл.', $file );
+            }
+        } elseif ( !is_writable( dirname( $file ) ) ) {
+            throw new FileException( 'Указанный файл недоступен для записи.', $file );
+        }
+
+        // Подготовка параметров
         if ( empty( $format ) )
             $format = $this->getRecommendedFormat();
 
         if ( !is_numeric( $quality ) )
             $quality = 1;
 
-        $src = $path . '.' . $format;
+        // Сохранение
+        if ( !static::saveImage( $this->bitmap, $file, $format, $quality ) )
+            throw new \Exception( 'Не удалось сохранить файл.' );
 
-        switch ( $format ) {
-            case self::FORMAT_JPG:
-            case 'jpeg':
-            case 'jpg':
-                imagejpeg( $this->bitmap, $src, $quality * 100 );
-                break;
-            case self::FORMAT_PNG:
-                imagesavealpha( $this->bitmap, true );
-                imagepng( $this->bitmap, $src );
-                break;
-            default:
-                $func = 'image' . $format;
+        return $this;
+    }
 
-                if ( !function_exists( $func ) )
-                    throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $format . ').' );
 
-                @$func( $this->bitmap, $src );
-                break;
-        }
+    /**
+     * Сохраняет это изображение в ресурс изображения.
+     *
+     * @return resource Новый ресурс. Операции над ним не затронут это изображение.
+     * @throws \Exception В случае непредвиденной ошибки
+     */
+    public function toResource()
+    {
+        if ( !isset( $this->bitmap ) )
+            throw new \Exception( 'В этом объекте нет данных изображения.' );
 
-        return $src;
+        $width  = $this->getWidth();
+        $height = $this->getHeight();
+        $bitmap = imagecreatetruecolor( $width, $height );
+        imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
+        return $bitmap;
     }
 
 
     /**
      * Генерирует цвет для использования в функциях, работающих с ресурсами изображения.
      *
-     * @param \resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
+     * @param resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
      * @param int[]|null $color Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
      * то изображение будет полностью прозрачным.
      * @return int
@@ -717,5 +729,37 @@ class Image
             $s += $arr1[$i] > $arr2[$i] ? ( $arr1[$i] - $arr2[$i] ) : ( $arr2[$i] - $arr1[$i] );
 
         return $s;
+    }
+
+
+    /**
+     * Кодирует изображение в заданный формат.
+     *
+     * @param resource $bitmap Ресурс изображения
+     * @param string|null $file Файл, в который нужно записать закодированное изобраежние. Если null, то будет выведено
+     * в главный вывод (на сайт).
+     * @param string $format Название формата, в который сохранять
+     * @param float $quality Качество сохранения (от 0 до 1)
+     * @return bool Удалось ли закодировать изображение
+     * @throws \InvalidArgumentException Если указанный формат не поддерживается
+     */
+    protected static function saveImage( $bitmap, $file, $format, $quality = 1 )
+    {
+        switch ( $format ) {
+            case self::FORMAT_JPG:
+            case 'jpeg':
+            case 'jpg':
+                return imagejpeg( $bitmap, $file, $quality * 100 );
+            case self::FORMAT_PNG:
+                imagesavealpha( $bitmap, true );
+                return imagepng( $bitmap, $file );
+            default:
+                $func = 'image' . $format;
+
+                if ( !function_exists( $func ) )
+                    throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $format . ').' );
+
+                return $func( $bitmap, $file );
+        }
     }
 }

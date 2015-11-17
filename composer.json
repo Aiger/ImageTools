@@ -7,9 +7,11 @@
         "pictures",
         "modify",
         "resize",
-        "print text",
+        "crop",
         "rotate",
-        "k-means"
+        "print text",
+        "k-means",
+        "chaining"
     ],
     "homepage": "https://github.com/FinesseRus/ImageTools",
     "authors": [
