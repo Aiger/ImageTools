@@ -251,7 +251,7 @@ class Image
         $text,
         $font,
         $fontSize = 12,
-        Array $color = [ 'r' => 0, 'g' => 0, 'b' => 0 ],
+        Array $color = Array( 'r' => 0, 'g' => 0, 'b' => 0 ),
         $x = 0,
         $y = 0,
         $alignHor = 0,
@@ -452,7 +452,7 @@ class Image
             for ( $j = 0; $j < 3; ++$j )
                 $clusters[ $i ][ $j ] = floor( $clusters[ $i ][ $j ] );
 
-        $ret = [];
+        $ret = Array();
         for ( $i = 0; $i < $amount; ++$i )
             $ret[] = Array(
                 'r' => $clusters[ $i ][ 0 ],
@@ -629,28 +629,28 @@ class Image
             if ( $desWidth === $curWidth || !$allowIncrease && $desWidth > $curWidth )
                 return null;
 
-            return [
+            return Array(
                 'srcX'      => 0,
                 'srcY'      => 0,
                 'srcWidth'  => $curWidth,
                 'srcHeight' => $curHeight,
                 'dstWidth'  => $desWidth,
                 'dstHeight' => round( $desWidth * $curHeight / $curWidth )
-            ];
+            );
         }
         elseif ( is_null( $desWidth ) ) // Приведение высоты к нужному значению
         {
             if ( $desHeight === $curHeight || !$allowIncrease && $desHeight > $curHeight )
                 return null;
 
-            return [
+            return Array(
                 'srcX'      => 0,
                 'srcY'      => 0,
                 'srcWidth'  => $curWidth,
                 'srcHeight' => $curHeight,
                 'dstWidth'  => round( $desHeight * $curWidth / $curHeight ),
                 'dstHeight' => $desHeight
-            ];
+            );
         }
         elseif ( $sizing === static::SIZING_EXEC ) // Просто изменить размеры до указанных, плюнув на пропорции
         {
@@ -664,14 +664,14 @@ class Image
             )
                 return null;
 
-            return [
+            return Array(
                 'srcX'      => 0,
                 'srcY'      => 0,
                 'srcWidth'  => $curWidth,
                 'srcHeight' => $curHeight,
                 'dstWidth'  => $allowIncrease ? $desWidth  : min( $desWidth,  $curWidth  ),
                 'dstHeight' => $allowIncrease ? $desHeight : min( $desHeight, $curHeight )
-            ];
+            );
         }
         elseif ( $sizing === static::SIZING_CONTAIN || $sizing === static::SIZING_COVER ) // Пропорции изображения сохраняются и оно вписывается в размер
         {
@@ -699,14 +699,14 @@ class Image
             $srcX      = round( ( $curWidth  - $srcWidth  ) * $alignHor );
             $srcY      = round( ( $curHeight - $srcHeight ) * $alignVer );
 
-            return [
+            return Array(
                 'srcX'      => $srcX,
                 'srcY'      => $srcY,
                 'srcWidth'  => $srcWidth,
                 'srcHeight' => $srcHeight,
                 'dstWidth'  => min( $desWidth,  round( $curWidth  * $scale ) ),
                 'dstHeight' => min( $desHeight, round( $curHeight * $scale ) )
-            ];
+            );
         }
 
         return null;
