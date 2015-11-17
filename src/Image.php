@@ -52,7 +52,7 @@ class Image
     const FORMAT_GIF = 'gif';
 
     /**
-     * @var resource Ресурс изображения.
+     * @var \resource Ресурс изображения.
      */
     protected $bitmap;
 
@@ -63,13 +63,16 @@ class Image
 
 
     /**
-     * @param resource $bitmap DG-ресурс изображения
+     * @param \resource $bitmap DG-ресурс изображения
      * @param bool $isTransparent Имеет ли переданное в $bitmap изображение прозрачность. Не существенный аргумент,
      * используется только для выбора формата при сохранении.
-     * @throws \InvalidArgumentException Если указанный ресурс не является ресурсом изображения
+     * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
      */
-    public function __construct( resource $bitmap, $isTransparent = false )
+    public function __construct( $bitmap, $isTransparent = false )
     {
+        if ( !is_resource( $bitmap ) )
+            throw new \InvalidArgumentException( 'Аргумент $bitmap не является ресурсом.' );
+
         if ( get_resource_type( $bitmap ) !== 'gd' )
             throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
 
@@ -201,8 +204,8 @@ class Image
             $this->getHeight(),
             $width,
             $height,
-            $sizing,
             $allowIncrease,
+            $sizing,
             $alignHor,
             $alignVer
         );
@@ -545,14 +548,21 @@ class Image
     /**
      * Генерирует цвет для использования в функциях, работающих с ресурсами изображения.
      *
-     * @param resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
+     * @param \resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
      * @param int[]|null $color Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
      * то изображение будет полностью прозрачным.
      * @return int
+     * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
      */
-    public static function allocateColor( resource $bitmap, Array $color = null )
+    public static function allocateColor( $bitmap, Array $color = null )
     {
-       return is_null( $color )
+        if ( !is_resource( $bitmap ) )
+            throw new \InvalidArgumentException( 'Аргумент $bitmap не является ресурсом.' );
+
+        if ( get_resource_type( $bitmap ) !== 'gd' )
+            throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
+
+        return is_null( $color )
             ? imagecolorallocatealpha( $bitmap, 0, 0, 0, 127 )
             : imagecolorallocatealpha(
                 $bitmap,
@@ -616,7 +626,7 @@ class Image
                 'dstHeight' => round( $desWidth * $curHeight / $curWidth )
             ];
         }
-        else if ( !is_null( $desHeight ) ) // Приведение высоты к нужному значению
+        elseif ( is_null( $desWidth ) ) // Приведение высоты к нужному значению
         {
             if ( $desHeight === $curHeight || !$allowIncrease && $desHeight > $curHeight )
                 return null;
@@ -630,7 +640,7 @@ class Image
                 'dstHeight' => $desHeight
             ];
         }
-        else if ( $sizing === static::SIZING_EXEC ) // Просто изменить размеры до указанных, плюнув на пропорции
+        elseif ( $sizing === static::SIZING_EXEC ) // Просто изменить размеры до указанных, плюнув на пропорции
         {
             if (
                 $desHeight === $curHeight &&
@@ -651,31 +661,31 @@ class Image
                 'dstHeight' => $allowIncrease ? $desHeight : min( $desHeight, $curHeight )
             ];
         }
-        else if ( $sizing === static::SIZING_CONTAIN || $sizing === static::SIZING_COVER ) // Пропорции изображения сохраняются и оно вписывается в размер
+        elseif ( $sizing === static::SIZING_CONTAIN || $sizing === static::SIZING_COVER ) // Пропорции изображения сохраняются и оно вписывается в размер
         {
             $curRatio = $curWidth / $curHeight;
             $desRatio = $desWidth / $desHeight;
 
             if ( $sizing === static::SIZING_CONTAIN xor $curRatio > $desRatio ) {
-                // Равнение по горизонтальным краям
-                $scale = $desWidth / $curWidth;
-            } else {
                 // Равнение по вертикальным краям
                 $scale = $desHeight / $curHeight;
+            } else {
+                // Равнение по горизонтальным краям
+                $scale = $desWidth / $curWidth;
             }
 
             if ( !$allowIncrease && $scale > 1 )
-                $scale = 1;
+                $scale = 1.0;
 
-            if ( $scale == 1 && $desWidth > $curWidth && $desHeight > $curHeight )
+            if ( $scale == 1.0 && $desWidth > $curWidth && $desHeight > $curHeight )
                 return null;
 
             // Коэффициент масштабирования найден, осталось рассчитать коэффициенты сдвига
 
             $srcWidth  = min( round( $desWidth  / $scale ), $curWidth  );
             $srcHeight = min( round( $desHeight / $scale ), $curHeight );
-            $srcX      = round( ( $curWidth  - $srcWidth  ) * $alignVer );
-            $srcY      = round( ( $curHeight - $srcHeight ) * $alignHor );
+            $srcX      = round( ( $curWidth  - $srcWidth  ) * $alignHor );
+            $srcY      = round( ( $curHeight - $srcHeight ) * $alignVer );
 
             return [
                 'srcX'      => $srcX,
