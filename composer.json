@@ -5,9 +5,11 @@
     "keywords": [
         "images",
         "pictures",
+        "modify",
         "resize",
-        "write",
-        "modify"
+        "print text",
+        "rotate",
+        "k-means"
     ],
     "homepage": "https://github.com/FinesseRus/ImageTools",
     "authors": [
