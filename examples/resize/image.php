@@ -8,7 +8,7 @@ use AigerTeam\ImageTools\ImageFactory;
 
 // Обработка изображения
 $factory = new ImageFactory();
-$image = $factory->openFile( 'lena.gif' );
+$image = $factory->openFile( 'example.jpg' );
 $image->resize(
 	$_GET[ 'width' ],
 	$_GET[ 'height' ],
