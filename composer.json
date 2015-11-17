@@ -1,0 +1,29 @@
+{
+    "name": "FinesseRus/ImageTools",
+    "type": "library",
+    "description": "PHP tools for editing images in object-oriented way.",
+    "keywords": [
+        "images",
+        "pictures",
+        "resize",
+        "write",
+        "modify"
+    ],
+    "homepage": "https://github.com/FinesseRus/ImageTools",
+    "authors": [
+        {
+            "name": "Finesse",
+            "email": "finesserus@gmail.com"
+        },
+        {
+            "name": "maindefine",
+            "homepage": "http://ahrameev.ru"
+        }
+    ],
+    "require": {
+        "php": ">=4.3.2"
+    },
+    "autoload": {
+        "psr-4": { "AigerTeam\\ImageTools\\": "" }
+    }
+}
