@@ -133,7 +133,7 @@ class Image
      */
     public function getRecommendedExtension( $includeDot = false )
     {
-        return image_type_to_extension( $this->getRecommendedType(), $includeDot );
+        return static::imageType2extension( $this->getRecommendedType(), $includeDot );
     }
 
 
@@ -470,7 +470,7 @@ class Image
      * @param float|null $quality Качество сохранения (от 0 до 1)
      * @return static Сам себя
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
-     * @throws \Exception Если не удалось сохранить изображение в формат
+     * @throws \Exception Если не удалось закодировать изображение в формат
      */
     public function display( $type = null, $quality = null )
     {
@@ -492,12 +492,13 @@ class Image
      *
      * @param string $file Путь к файлу на сервере, в который нужно сохранить изображение
      * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
-     * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
+     * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании названия файла и рекомендуемого
+     * формата.
      * @param float|null $quality Качество сохранения (от 0 до 1)
      * @return static Сам себя
      * @throws FileException Если указанный путь недоступен для записи
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
-     * @throws \Exception Если не удалось сохранить файл
+     * @throws \Exception Если не удалось закодировать изображение в формат
      */
     public function toFile( $file, $type = null, $quality = null )
     {
@@ -534,7 +535,7 @@ class Image
             $extension = pathinfo( $file, PATHINFO_EXTENSION );
 
             try {
-                $type = static::extension_to_image_type( $extension );
+                $type = static::extension2imageType( $extension );
                 $result = static::saveImage( $this->bitmap, $file, $type, $quality );
                 $saved = true;
             } catch ( \InvalidArgumentException $e ) {}
@@ -547,10 +548,50 @@ class Image
         if ( !$saved )
             $result = static::saveImage( $this->bitmap, $file, $type, $quality );
 
+        clearstatcache( true, $file );
+
         if ( !$result )
             throw new \Exception( 'Не удалось сохранить файл.' );
 
         return $this;
+    }
+
+
+    /**
+     * Сохраняет файл в указанную директорию, при этом название подбирается автоматически в соответствии с условиями.
+     *
+     * @param string $dir Директория, в которую нужно сохранить файл (если не существует, будет создана)
+     * @param string $name Желаемое название файла (без расширения)
+     * @param bool $rewrite Позволять ли перезаписывать существующие файлы. Если указать false, то название будет
+     * подобрано так, чтобы не совпадать с существующим файлом.
+     * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
+     * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
+     * @param float|null $quality Качество сохранения (от 0 до 1)
+     * @return string Путь, по которому сохранён файл
+     * @throws FileException При ошибках, связанных с файловыми операциями
+     * @throws \InvalidArgumentException Если указанный формат не поддерживается
+     * @throws \Exception Если не удалось закодировать изображение в формат
+     */
+    public function toUncertainFile( $dir, $name, $rewrite = false, $type = null, $quality = 1 )
+    {
+        if ( empty( $type ) )
+            $type = $this->getRecommendedType();
+
+        if ( !is_numeric( $quality ) )
+            $quality = 1;
+
+        static::prepareDir( $dir );
+
+        $extension = static::imageType2extension( $type, true );
+        $file = $dir . DIRECTORY_SEPARATOR . $name . $extension;
+        $counter = 0;
+
+        while ( $rewrite && !is_file( $file ) || !$rewrite && file_exists( $file ) )
+            $file = $dir . DIRECTORY_SEPARATOR . $name . '('. ++$counter .')' . $extension;
+
+        $this->toFile( $file, $type, $quality );
+
+        return $file;
     }
 
 
@@ -789,12 +830,12 @@ class Image
 
 
     /**
-     * Возвращает формат изображения на основании расширения.
+     * Возвращает формат изображения на основе расширения.
      *
      * @param string $extension Название расширения (без точки в начале)
      * @return int Значение одной из глобальных констант IMAGETYPE_*
      */
-    protected static function extension_to_image_type( $extension )
+    protected static function extension2imageType( $extension )
     {
         switch ( $extension ) {
             case 'jpg': case 'jpeg': return IMAGETYPE_JPEG;
@@ -803,6 +844,50 @@ class Image
             case 'bmp':  return IMAGETYPE_BMP;
             case 'wbmp': return IMAGETYPE_WBMP;
             default:     return IMAGETYPE_UNKNOWN;
+        }
+    }
+
+
+    /**
+     * Возвращает расширение изображения на основе формата.
+     *
+     * @param int $type Формат. Значение — значение одной из глобальных констант IMAGETYPE_*.
+     * @param bool $includeDot Добавлять ли точку к названию формата
+     * @return string Название расширения
+     */
+    protected static function imageType2extension( $type, $includeDot = false )
+    {
+        switch ( $type ) {
+            case IMAGETYPE_JPEG: return ( $includeDot ? '.' : '' ) . 'jpg';
+            default: return image_type_to_extension( $type, $includeDot );
+        }
+    }
+
+
+    /**
+     * Создаёт указанную директорию, если её нет. Создаёт без вопросов (если права есть).
+     *
+     * @param string $dir Адрес директории
+     * @param int $mode Права на директорию, если нужно будет создать новую (см. chmod)
+     * @throws FileException
+     */
+    protected static function prepareDir( $dir, $mode = 0775 )
+    {
+        try {
+            clearstatcache( true, $dir );
+        } catch (\Exception $e) {
+            throw new FileException( 'Не удалось очистить кэш информации о директории. Ошибка: ' . $e->getMessage(), $dir );
+        }
+
+        if ( !is_dir( $dir ) ) {
+            try {
+                mkdir( $dir, 0777, true );
+                @chmod( $dir, $mode );        // Если передать эти права в mkdir, то они будут выставлены некорректно
+            } catch( \Exception $e ) {
+                throw new FileException( 'Не удалось создать директории. Ошибка: ' . $e->getMessage(), $dir );
+            }
+
+            @clearstatcache( true, $dir );
         }
     }
 }
