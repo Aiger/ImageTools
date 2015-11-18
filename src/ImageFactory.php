@@ -97,9 +97,9 @@ class ImageFactory
             isset( $exif[ 'IFD0' ][ 'Orientation' ] )
         ) {
 			switch( $exif[ 'IFD0' ][ 'Orientation' ] ) {
-				case 8: $image->rotate(  90 ); break;
-				case 3: $image->rotate( 180 ); break;
-				case 6: $image->rotate( -90 ); break;
+				case 8: $image = $image->rotate(  90 ); break;
+				case 3: $image = $image->rotate( 180 ); break;
+				case 6: $image = $image->rotate( -90 ); break;
 			}
 		}
 

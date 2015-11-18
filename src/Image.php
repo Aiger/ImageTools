@@ -83,7 +83,7 @@ class Image
 
     
     /**
-     * Уничожает изображение, в том числе уничтожает его ресурс.
+     * Уничтожает изображение, в том числе уничтожает его ресурс.
      */
     public function __destruct()
     {
@@ -138,7 +138,7 @@ class Image
 
 
     /**
-     * Изменяет размер изображения.
+     * Изменяет размер изображения. Создаётся копия, текущий объект не модифицируется.
      *
      * @param int|null $width Желаемая ширина изображения. Если null, то будет рассчитана из высоты с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
@@ -154,7 +154,7 @@ class Image
      * @param float $alignVer Положение изображения по вертикали при обрезке (от 0 (виден верхний край) до 1 (виден
      * нижний край)). Влияет только если указаны ширина и высота и значение и значение аргумента $sizing равно
      * Image::SIZING_COVER.
-     * @return static Сам себя
+     * @return static Изображение с изменённым размером
      * @throws \Exception Если не удалось изменить размер
      *
      * @see Image::SIZING_CONTAIN
@@ -216,19 +216,18 @@ class Image
             $params[ 'dstWidth' ], $params[ 'dstHeight' ],
             $params[ 'srcWidth' ], $params[ 'srcHeight' ] );
         imagealphablending( $bitmap, true );
-        imagedestroy( $this->bitmap );
 
         if ( !$result )
             throw new \Exception( 'Не удалось изменить размер изображения по неизвестной причине.' );
 
-        $this->bitmap = $bitmap;
-
-        return $this;
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
     }
 
 
     /**
-     * Пишет текст на изображении.
+     * Пишет текст на изображении. Создаётся копия, текущий объект не модифицируется.
      *
      * @param string $text Текст, который нужно написать
      * @param string $font Путь к файлу шрифта, которым нужно сделать надпись, на сервере
@@ -241,7 +240,7 @@ class Image
      * @param float $alignVer Положение текста по вертикали (от 0 (снизу от указанной точки) до 1 (сверху от указанной
      * точки))
      * @param float $angle Угол поворота текста в градусах (против часовой стрелки)
-     * @return static Сам себя
+     * @return static Изображение с надписью
      * @throws \Exception Если не удалось поместить текст
      */
     function write(
@@ -261,16 +260,19 @@ class Image
         $x -= $width  * $alignHor;
         $y -= $height * $alignVer;
         $color = static::allocateColor( $this->bitmap, $color );
+        $bitmap = $this->toResource();
 
-        if ( !imagettftext( $this->bitmap, $fontSize, $angle, $x, $y, $color, $font, $text ) )
+        if ( !imagettftext( $bitmap, $fontSize, $angle, $x, $y, $color, $font, $text ) )
             throw new \Exception( 'Не поместить текст на изображении по неизвестной причине.' );
 
-        return $this;
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
     }
 
 
     /**
-     * Вставляет указанное изображение в текущее.
+     * Вставляет указанное изображение в текущее. Создаётся копия, текущий объект не модифицируется.
      *
      * @param self $image Вставляемое изображение
      * @param int $dstX Координата X на текущем изображении, куда вставить новое. По умолчанию, 0.
@@ -281,7 +283,7 @@ class Image
      * @param int|null $dstHeight Новая Высота вставляемой области. Если null, то не меняется.
      * @param int|null $srcWidth Ширина вставляемой области вставляемого изображения. Если null, то вся ширина изображения.
      * @param int|null $srcHeight Высота вставляемой области вставляемого изображения. Если null, то вся высота изображения.
-     * @return static Сам себя
+     * @return static Текущее изображение с вставленным
      * @throws \Exception Если не удалось вставить изображение
      */
     function insertImage(
@@ -307,8 +309,10 @@ class Image
         if( !is_numeric( $dstWidth  ) ) $dstWidth  = $srcWidth;
         if( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
 
+        $bitmap = $this->toResource();
+
         $result = imagecopyresampled(
-            $this->bitmap,
+            $bitmap,
             $image->bitmap,
             $dstX,     $dstY,
             $srcX,     $srcY,
@@ -319,17 +323,19 @@ class Image
         if ( !$result )
             throw new \Exception( 'Не удалось вставить изображение по неизвестной причине.' );
 
-        return $this;
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
     }
 
 
     /**
-     * Вращает изображение.
+     * Вращает изображение. Создаётся копия, текущий объект не модифицируется.
      *
      * @param float $angle Угол, выраженный в градусах, против часовой стрелки
      * @param int[]|null $color Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если изображение
      * повёрнуто на угол, не кратный 90°.
-     * @return static Сам себя
+     * @return static Повёрнутое изображение
      * @throws \Exception Если не удалось повернуть изображение
      */
     function rotate( $angle, Array $underlay = null )
@@ -339,10 +345,9 @@ class Image
         if ( !$bitmap )
             throw new \Exception( 'Не удалось повернуть изображение по неизвестной причине.' );
 
-        imagedestroy( $this->bitmap );
-        $this->bitmap = $bitmap;
-
-        return $this;
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
     }
 
 
@@ -640,6 +645,19 @@ class Image
                 empty( $fill[ 'b' ] ) ? 0 : $fill[ 'b' ],
                 empty( $fill[ 'a' ] ) ? 0 : $fill[ 'a' ]
             );
+    }
+
+
+    /**
+     * Создаёт объект своего класса. Нужен для возможности безопасного изменения аргументов конструктора в дочерних
+     * классах.
+     *
+     * @see Image::__constructor
+     * @return static
+     */
+    protected static function construct( $bitmap )
+    {
+        return new static( $bitmap );
     }
 
 
