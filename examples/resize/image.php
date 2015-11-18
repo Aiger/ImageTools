@@ -2,8 +2,9 @@
 
 include '../../src/Image.php';
 include '../../src/ImageFactory.php';
+include '../../src/exceptions/FileException.php';
+include '../../src/exceptions/ImageFileException.php';
 
-use AigerTeam\ImageTools\Image;
 use AigerTeam\ImageTools\ImageFactory;
 
 // Обработка изображения
@@ -18,16 +19,6 @@ $image = ( new ImageFactory() )
         $_GET[ 'alignVer' ]
     );
 
-// Построение заголовков для вывода в ответ
-$format = $image->getRecommendedFormat();
-switch ( $format ) {
-	case Image::FORMAT_JPG:
-		$mime = 'image/jpeg';
-		break;
-	default:
-		$mime = 'image/' . $format;
-}
-
 // Вывод
-header( 'Content-type: ' . $mime );
+header( 'Content-type: ' . image_type_to_mime_type( $image->getRecommendedType() ) );
 $image->display();

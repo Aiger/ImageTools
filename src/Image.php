@@ -39,21 +39,6 @@ class Image
     const SIZING_EXEC = 'exec';
 
     /**
-     * Формат JPG
-     */
-    const FORMAT_JPG = 'jpg';
-
-    /**
-     * Формат PNG
-     */
-    const FORMAT_PNG = 'png';
-
-    /**
-     * Формат GIF
-     */
-    const FORMAT_GIF = 'gif';
-
-    /**
      * @var resource Ресурс изображения. Предполагается, что после выполнения конструктора в этом атрибуте всегда есть
      * значение указанного типа.
      */
@@ -127,16 +112,28 @@ class Image
 
 
     /**
-     * Возвращает название рекомендуемого для этого изображения формата, которое можно подставить в имя файла.
+     * Возвращает рекомендуемый для этого изображения формат.
      *
-     * @return string Совпадает с одной из констант FORMAT_* этого класса.
+     * @return int Значение одной из глобальных констант IMAGETYPE_*
      */
-    public function getRecommendedFormat()
+    public function getRecommendedType()
     {
         if ( $this->isTransparent )
-            return static::FORMAT_PNG;
+            return IMAGETYPE_PNG;
 
-        return static::FORMAT_JPG;
+        return IMAGETYPE_JPEG;
+    }
+
+
+    /**
+     * Возвращает рекомендуемое расширение для сохранения этого изображения.
+     *
+     * @param bool $includeDot Включать ли точку в название расшинеия
+     * @return string Название расширения, которое можно подставить в имя файла
+     */
+    public function getRecommendedExtension( $includeDot = false )
+    {
+        return image_type_to_extension( $this->getRecommendedType(), $includeDot );
     }
 
 
@@ -465,25 +462,25 @@ class Image
 
 
     /**
-     * Сохраняет изображение заданный формат и печатает его в главный вывод. Может использоваться для отправки
+     * Сохраняет изображение в заданный формат и печатает его в главный вывод. Может использоваться для отправки
      * изображение в качестве ответа на клиент.
      *
-     * @param string|null $format Формат, в который нужно сохранить изображение. Если null, то будет подобран
-     * автоматически. Чтобы узнать список вариантов, смотрите константы FORMAT_* этого класса.
+     * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
+     * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
      * @param float|null $quality Качество сохранения (от 0 до 1)
      * @return static Сам себя
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось сохранить изображение в формат
      */
-    public function display( $format = null, $quality = null )
+    public function display( $type = null, $quality = null )
     {
-        if ( empty( $format ) )
-            $format = $this->getRecommendedFormat();
+        if ( empty( $type ) )
+            $type = $this->getRecommendedType();
 
         if ( !is_numeric( $quality ) )
             $quality = 1;
 
-        if ( !static::saveImage( $this->bitmap, null, $format, $quality ) )
+        if ( !static::saveImage( $this->bitmap, null, $type, $quality ) )
             throw new \Exception( 'Не удалось сохранить файл.' );
 
         return $this;
@@ -494,15 +491,15 @@ class Image
      * Сохраняет изображение в файл.
      *
      * @param string $file Путь к файлу на сервере, в который нужно сохранить изображение
-     * @param string|null $format Формат, в который нужно сохранить изображение. Если null, то будет подобран
-     * автоматически. Чтобы узнать список вариантов, смотрите константы FORMAT_* этого класса.
+     * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
+     * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
      * @param float|null $quality Качество сохранения (от 0 до 1)
      * @return static Сам себя
      * @throws FileException Если указанный путь недоступен для записи
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось сохранить файл
      */
-    public function toFile( $file, $format = null, $quality = null )
+    public function toFile( $file, $type = null, $quality = null )
     {
         // Очистка кеша информации о файле
         try {
@@ -517,21 +514,40 @@ class Image
                 if ( !is_writable( $file ) )
                     throw new FileException( 'Указанный файл недоступен для записи.', $file );
             } else {
-                throw new FileException( 'Нельзя сохранить в указанный файл, потому что это не файл.', $file );
+                throw new FileException( 'Невозможно сохранить, потому что указанный путь не является файлом.', $file );
             }
         } elseif ( !is_writable( dirname( $file ) ) ) {
             throw new FileException( 'Указанный файл недоступен для записи.', $file );
         }
 
         // Подготовка параметров
-        if ( empty( $format ) )
-            $format = $this->getRecommendedFormat();
-
         if ( !is_numeric( $quality ) )
             $quality = 1;
 
-        // Сохранение
-        if ( !static::saveImage( $this->bitmap, $file, $format, $quality ) )
+        // Подбор формата и сохранение
+
+        $saved = false;
+        $result = null;
+
+        if ( empty( $type ) )
+        {
+            $extension = pathinfo( $file, PATHINFO_EXTENSION );
+
+            try {
+                $type = static::extension_to_image_type( $extension );
+                $result = static::saveImage( $this->bitmap, $file, $type, $quality );
+                $saved = true;
+            } catch ( \InvalidArgumentException $e ) {}
+
+            if ( !$saved ) {
+                $type = $this->getRecommendedType();
+            }
+        }
+
+        if ( !$saved )
+            $result = static::saveImage( $this->bitmap, $file, $type, $quality );
+
+        if ( !$result )
             throw new \Exception( 'Не удалось сохранить файл.' );
 
         return $this;
@@ -624,6 +640,7 @@ class Image
         {
             return null;
         }
+
         if ( is_null( $desHeight ) ) // Приведение ширины к нужному значению
         {
             if ( $desWidth === $curWidth || !$allowIncrease && $desWidth > $curWidth )
@@ -638,7 +655,8 @@ class Image
                 'dstHeight' => round( $desWidth * $curHeight / $curWidth )
             );
         }
-        elseif ( is_null( $desWidth ) ) // Приведение высоты к нужному значению
+
+        if ( is_null( $desWidth ) ) // Приведение высоты к нужному значению
         {
             if ( $desHeight === $curHeight || !$allowIncrease && $desHeight > $curHeight )
                 return null;
@@ -652,7 +670,8 @@ class Image
                 'dstHeight' => $desHeight
             );
         }
-        elseif ( $sizing === static::SIZING_EXEC ) // Просто изменить размеры до указанных, плюнув на пропорции
+
+        if ( $sizing === static::SIZING_EXEC ) // Просто изменить размеры до указанных, плюнув на пропорции
         {
             if (
                 $desHeight === $curHeight &&
@@ -673,7 +692,8 @@ class Image
                 'dstHeight' => $allowIncrease ? $desHeight : min( $desHeight, $curHeight )
             );
         }
-        elseif ( $sizing === static::SIZING_CONTAIN || $sizing === static::SIZING_COVER ) // Пропорции изображения сохраняются и оно вписывается в размер
+
+        if ( $sizing === static::SIZING_CONTAIN || $sizing === static::SIZING_COVER ) // Пропорции изображения сохраняются и оно вписывается в размер
         {
             $curRatio = $curWidth / $curHeight;
             $desRatio = $desWidth / $desHeight;
@@ -738,28 +758,51 @@ class Image
      * @param resource $bitmap Ресурс изображения
      * @param string|null $file Файл, в который нужно записать закодированное изобраежние. Если null, то будет выведено
      * в главный вывод (на сайт).
-     * @param string $format Название формата, в который сохранять
+     * @param int $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
+     * констант IMAGETYPE_*.
      * @param float $quality Качество сохранения (от 0 до 1)
      * @return bool Удалось ли закодировать изображение
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      */
-    protected static function saveImage( $bitmap, $file, $format, $quality = 1 )
+    protected static function saveImage( $bitmap, $file, $type, $quality = 1 )
     {
-        switch ( $format ) {
-            case self::FORMAT_JPG:
-            case 'jpeg':
-            case 'jpg':
+        switch ( $type ) {
+            case IMAGETYPE_JPEG:
                 return imagejpeg( $bitmap, $file, $quality * 100 );
-            case self::FORMAT_PNG:
+
+            case IMAGETYPE_BMP:
+            case IMAGETYPE_WBMP:
+                return imagewbmp( $bitmap, $file );
+
+            case IMAGETYPE_PNG:
                 imagesavealpha( $bitmap, true );
                 return imagepng( $bitmap, $file );
+
+            case IMAGETYPE_GIF:
+                imagesavealpha( $bitmap, true );
+                return imagegif( $bitmap, $file );
+
             default:
-                $func = 'image' . $format;
+                throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $type . ').' );
+        }
+    }
 
-                if ( !function_exists( $func ) )
-                    throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $format . ').' );
 
-                return $func( $bitmap, $file );
+    /**
+     * Возвращает формат изображения на основании расширения.
+     *
+     * @param string $extension Название расширения (без точки в начале)
+     * @return int Значение одной из глобальных констант IMAGETYPE_*
+     */
+    protected static function extension_to_image_type( $extension )
+    {
+        switch ( $extension ) {
+            case 'jpg': case 'jpeg': return IMAGETYPE_JPEG;
+            case 'png':  return IMAGETYPE_PNG;
+            case 'gif':  return IMAGETYPE_GIF;
+            case 'bmp':  return IMAGETYPE_BMP;
+            case 'wbmp': return IMAGETYPE_WBMP;
+            default:     return IMAGETYPE_UNKNOWN;
         }
     }
 }
