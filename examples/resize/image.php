@@ -7,16 +7,16 @@ use AigerTeam\ImageTools\Image;
 use AigerTeam\ImageTools\ImageFactory;
 
 // Обработка изображения
-$factory = new ImageFactory();
-$image = $factory->openFile( 'example.jpg' );
-$image->resize(
-	$_GET[ 'width' ],
-	$_GET[ 'height' ],
-	!!$_GET[ 'allowIncrease' ],
-	$_GET[ 'sizing' ],
-	$_GET[ 'alignHor' ],
-	$_GET[ 'alignVer' ]
-);
+$image = ( new ImageFactory() )
+    ->openFile( 'example.jpg' )
+    ->resize(
+        $_GET[ 'width' ],
+        $_GET[ 'height' ],
+        $_GET[ 'allowIncrease' ],
+        $_GET[ 'sizing' ],
+        $_GET[ 'alignHor' ],
+        $_GET[ 'alignVer' ]
+    );
 
 // Построение заголовков для вывода в ответ
 $format = $image->getRecommendedFormat();
