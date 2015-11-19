@@ -4,6 +4,8 @@ namespace AigerTeam\ImageTools;
 
 use AigerTeam\ImageTools\Exceptions\FileException;
 
+if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
+
 /**
  * Class Image
  *
@@ -880,9 +882,13 @@ class Image
             case IMAGETYPE_GIF:
                 return @imagegif( $bitmap, $file );
 
-            default:
-                throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $type . ').' );
+            case IMAGETYPE_WEBP:
+                if ( function_exists( 'imagewebp' ) )
+                    return @imagewebp( $bitmap, $file );
+                break;
         }
+
+        throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $type . ').' );
     }
 
 
@@ -900,6 +906,7 @@ class Image
             case 'gif':  return IMAGETYPE_GIF;
             case 'bmp':  return IMAGETYPE_BMP;
             case 'wbmp': return IMAGETYPE_WBMP;
+            case 'webp': return IMAGETYPE_WEBP;
             default:     return IMAGETYPE_UNKNOWN;
         }
     }
@@ -916,6 +923,7 @@ class Image
     {
         switch ( $type ) {
             case IMAGETYPE_JPEG: return ( $includeDot ? '.' : '' ) . 'jpg';
+            case IMAGETYPE_WEBP: return ( $includeDot ? '.' : '' ) . 'webp';
             default: return image_type_to_extension( $type, $includeDot );
         }
     }
