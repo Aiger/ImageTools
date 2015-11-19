@@ -233,8 +233,8 @@ class Image
      *
      * @param string $text Текст, который нужно написать
      * @param string $font Путь к файлу шрифта, которым нужно сделать надпись, на сервере
-     * @param int $fontSize Размер шрифта
-     * @param int $color Цвет (массив с индексами r, g, b и по желанию a)
+     * @param float $fontSize Размер шрифта
+     * @param float[] $color Цвет (массив с индексами r, g, b и по желанию a)
      * @param int $x Координата X блока текста
      * @param int $y Координата Y блока текста
      * @param float $alignHor Положение текста по горизонтали (от 0 (слева от указанной точки) до 1 (справа от указанной
@@ -248,13 +248,13 @@ class Image
     function write(
         $text,
         $font,
-        $fontSize = 12,
+        $fontSize = 12.0,
         Array $color = Array( 'r' => 0, 'g' => 0, 'b' => 0 ),
         $x = 0,
         $y = 0,
-        $alignHor = 0,
-        $alignVer = 0,
-        $angle = 0
+        $alignHor = .0,
+        $alignVer = .0,
+        $angle = .0
     ) {
         try {
             $coord = @imagettfbbox( $fontSize, $angle, $font, $text );
@@ -354,8 +354,8 @@ class Image
      * Вращает изображение. Возвращается копия, текущий объект не модифицируется.
      *
      * @param float $angle Угол, выраженный в градусах, против часовой стрелки
-     * @param float[]|null $color Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если изображение
-     * повёрнуто на угол, не кратный 90°.
+     * @param float[]|null $underlay Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если
+     * изображение повёрнуто на угол, не кратный 90°.
      * @return static Повёрнутое изображение
      * @throws \Exception Если не удалось повернуть изображение
      */
@@ -601,7 +601,7 @@ class Image
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось закодировать изображение в формат
      */
-    public function toUncertainFile( $dir, $name, $rewrite = false, $type = null, $quality = 1 )
+    public function toUncertainFile( $dir, $name, $rewrite = false, $type = null, $quality = 1.0 )
     {
         if ( empty( $type ) )
             $type = $this->getRecommendedType();
@@ -688,8 +688,9 @@ class Image
      * Создаёт объект своего класса. Нужен для возможности безопасного изменения аргументов конструктора в дочерних
      * классах.
      *
-     * @see Image::__constructor
+     * @param resource $bitmap DG-ресурс изображения
      * @return static
+     * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
      */
     protected static function construct( $bitmap )
     {
@@ -859,7 +860,7 @@ class Image
      * @return bool Удалось ли закодировать изображение
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      */
-    protected static function saveImage( $bitmap, $file, $type, $quality = 1 )
+    protected static function saveImage( $bitmap, $file, $type, $quality = 1.0 )
     {
         switch ( $type ) {
             case IMAGETYPE_JPEG:
