@@ -16,23 +16,41 @@ use AigerTeam\ImageTools\Exceptions\ImageFileException;
 class ImageFactory
 {
     /**
+     * @param int $memoryLimit Количество байт, до которых нужно расширить ограничение на количество используемой
+     * оперативной памяти.
+     */
+    public function __construct( $memoryLimit = 134217728 )
+    {
+        @ini_set( 'gd.jpeg_ignore_warning', true );
+
+        try {
+            $this->extendMemoryLimit( $memoryLimit );
+        } catch ( \Exception $e ) {}
+    }
+
+    /**
      * Создаёт пустое изображение указанного размера.
      *
      * @param int $width Высота изображения в пикселях
      * @param int $height Ширина изображения в пикселях
-     * @param int[]|null $fill Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
+     * @param float[]|null $fill Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
      * то изображение будет полностью прозрачным.
      * @return Image
      * @throws \Exception В случае непредвиденной ошибки
      */
 	public function blank( $width, $height, Array $fill = null )
     {
-        $bitmap = imagecreatetruecolor( $width, $height );
-        $isTransparent = is_null( $fill ) || !empty( $fill[ 'a' ] );
-        $color = Image::allocateColor( $bitmap, $fill );
+        $bitmap = @imagecreatetruecolor( $width, $height );
 
-        imagesavealpha( $bitmap, true );
-        imagefill( $bitmap, 0, 0, $color );
+        if ( !$bitmap )
+            throw new \Exception( 'Не удалось создать изображение. Возможно, не хватает оперативной памяти.' );
+
+        $color = Image::allocateColor( $bitmap, $fill );
+        $colorParts = imagecolorsforindex( $bitmap, $color );
+        $isTransparent = !empty( $colorParts[ 'alpha' ] );
+
+        @imagealphablending( $bitmap, false );
+        @imagefill( $bitmap, 0, 0, $color );
 
 		return new Image( $bitmap, $isTransparent );
 	}
@@ -80,12 +98,9 @@ class ImageFactory
             throw new ImageFileException( 'Нет подходящей функции для открытия изображения.', $file );
 
         // Открытие изображения
-        try {
-            $this->extendMemoryLimit( 128 * 1024 * 1024 );
-        } catch ( \Exception $e ) {}
-		$bitmap = @$func( $file );
+        $bitmap = @$func( $file );
 		if( !$bitmap )
-            throw new ImageFileException( 'Не удалось открыть изображение, возможно, потому что не хватило оперативной памяти.', $file );
+            throw new ImageFileException( 'Не удалось открыть изображение. Возможно, не хватает оперативной памяти.', $file );
 
         // Создание объекта изображения
         $image = new Image( $bitmap, in_array( $format, Array( 'png', 'gif' ) ) );

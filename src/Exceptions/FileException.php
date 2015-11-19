@@ -21,6 +21,7 @@ class FileException extends \Exception
      */
     public function __construct( $message, $path = null, $code = 0, \Exception $previous = null )
     {
+        $this->path = $path;
         parent::__construct( $message, $code, $previous );
     }
 

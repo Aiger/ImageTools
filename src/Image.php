@@ -39,8 +39,9 @@ class Image
     const SIZING_EXEC = 'exec';
 
     /**
-     * @var resource Ресурс изображения. Предполагается, что после выполнения конструктора в этом атрибуте всегда есть
-     * значение указанного типа.
+     * @var resource Ресурс изображения. Предполагается, что:
+     *   - после выполнения конструктора в этом атрибуте всегда есть значение указанного типа;
+     *   - значение параметра imagealphablending всегда установлено в true.
      */
     protected $bitmap;
 
@@ -66,6 +67,8 @@ class Image
 
         $this->bitmap = $bitmap;
         $this->isTransparent = $isTransparent;
+
+        @imagealphablending( $this->bitmap, true );
     }
 
 
@@ -81,15 +84,13 @@ class Image
         }
     }
 
-    
+
     /**
      * Уничтожает изображение, в том числе уничтожает его ресурс.
      */
     public function __destruct()
     {
-        try {
-            imagedestroy( $this->bitmap );
-        } catch ( \Exception $e ) {};
+        @imagedestroy( $this->bitmap );
     }
 
 
@@ -138,14 +139,15 @@ class Image
 
 
     /**
-     * Изменяет размер изображения. Создаётся копия, текущий объект не модифицируется.
+     * Изменяет размер изображения. Возвращается копия, текущий объект не модифицируется.
      *
      * @param int|null $width Желаемая ширина изображения. Если null, то будет рассчитана из высоты с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
      * @param int|null $height Желаемая высота изображения. Если null, то будет рассчитана из ширины с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
-     * @param bool $allowIncrease Позволять ли увеличивать изображение, иначе будет только уменьшаться. В любом случае
-     * все остальные условия будут продолжают действовать.
+     * @param bool $allowIncrease Позволять ли увеличивать изображение. Если нет, то изображение будет только
+     * уменьшаться, а итоговый размер может не совпасть с указанным. В любом случае все остальные условия будут
+     * соблюдены.
      * @param string $sizing Определяет, как изображение будет масштабироваться, чтобы занять указанную область.
      * Влияет только если указаны ширина и высота. Смотрите константы SIZING_*, чтобы узнать варианты.
      * @param float $alignHor Положение изображения по горизонтали при обрезке (от 0 (виден левый край) до 1 (виден
@@ -202,20 +204,20 @@ class Image
         );
 
         if ( !$params )
-            return $this;
+            return clone $this;
 
 
         // Непосредственно масштабирование
-        $bitmap = imagecreatetruecolor( $params[ 'dstWidth' ], $params[ 'dstHeight' ] );
-        imagealphablending( $bitmap, false );
-        $result = imagecopyresampled(
+        $bitmap = @imagecreatetruecolor( $params[ 'dstWidth' ], $params[ 'dstHeight' ] );
+        @imagealphablending( $bitmap, false );
+        $result = @imagecopyresampled(
             $bitmap,
             $this->bitmap,
-            0, 0,
-            $params[ 'srcX' ], $params[ 'srcY' ],
+            0,                     0,
+            $params[ 'srcX' ],     $params[ 'srcY' ],
             $params[ 'dstWidth' ], $params[ 'dstHeight' ],
-            $params[ 'srcWidth' ], $params[ 'srcHeight' ] );
-        imagealphablending( $bitmap, true );
+            $params[ 'srcWidth' ], $params[ 'srcHeight' ]
+        );
 
         if ( !$result )
             throw new \Exception( 'Не удалось изменить размер изображения по неизвестной причине.' );
@@ -227,7 +229,7 @@ class Image
 
 
     /**
-     * Пишет текст на изображении. Создаётся копия, текущий объект не модифицируется.
+     * Пишет текст на изображении. Возвращается копия, текущий объект не модифицируется.
      *
      * @param string $text Текст, который нужно написать
      * @param string $font Путь к файлу шрифта, которым нужно сделать надпись, на сервере
@@ -254,16 +256,25 @@ class Image
         $alignVer = 0,
         $angle = 0
     ) {
-        $coord = imagettfbbox( $fontSize, $angle, $font, $text );
-        $width  = $coord[ 2 ] - $coord[ 0 ];
-        $height = $coord[ 1 ] - $coord[ 7 ];
-        $x -= $width  * $alignHor;
-        $y -= $height * $alignVer;
-        $color = static::allocateColor( $this->bitmap, $color );
-        $bitmap = $this->toResource();
+        try {
+            $coord = @imagettfbbox( $fontSize, $angle, $font, $text );
+            if ( $coord === false )
+                throw new \Exception;
 
-        if ( !imagettftext( $bitmap, $fontSize, $angle, $x, $y, $color, $font, $text ) )
+            $width  = $coord[ 2 ] - $coord[ 0 ];
+            $height = $coord[ 1 ] - $coord[ 7 ];
+            $x -= $width  * $alignHor;
+            $y -= $height * $alignVer;
+            $color = static::allocateColor( $this->bitmap, $color );
+            $bitmap = $this->toResource();
+
+            $result = @imagettftext( $bitmap, $fontSize, $angle, $x, $y, $color, $font, $text );
+            if ( !$result )
+                throw new \Exception;
+
+        } catch ( \Exception $e ) {
             throw new \Exception( 'Не поместить текст на изображении по неизвестной причине.' );
+        }
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = $this->isTransparent;
@@ -272,15 +283,15 @@ class Image
 
 
     /**
-     * Вставляет указанное изображение в текущее. Создаётся копия, текущий объект не модифицируется.
+     * Вставляет указанное изображение в текущее. Возвращается копия, текущий объект не модифицируется.
      *
      * @param self $image Вставляемое изображение
      * @param int $dstX Координата X на текущем изображении, куда вставить новое. По умолчанию, 0.
      * @param int $dstY Координата Y на текущем изображении, куда вставить новое. По умолчанию, 0.
      * @param int $srcX Координата X вставляемой области вставляемого изображения. По умолчанию, 0.
      * @param int $srcY Координата Y вставляемой области вставляемого изображения. По умолчанию, 0.
-     * @param int|null $dstWidth Новая ширина вставляемой области. Если null, то не меняется.
-     * @param int|null $dstHeight Новая Высота вставляемой области. Если null, то не меняется.
+     * @param int|null $dstWidth Новая ширина вставляемой области. Если null, то такая же как $srcWidth.
+     * @param int|null $dstHeight Новая Высота вставляемой области. Если null, то такая же как $srcHeight.
      * @param int|null $srcWidth Ширина вставляемой области вставляемого изображения. Если null, то вся ширина изображения.
      * @param int|null $srcHeight Высота вставляемой области вставляемого изображения. Если null, то вся высота изображения.
      * @return static Текущее изображение с вставленным
@@ -311,14 +322,24 @@ class Image
 
         $bitmap = $this->toResource();
 
-        $result = imagecopyresampled(
-            $bitmap,
-            $image->bitmap,
-            $dstX,     $dstY,
-            $srcX,     $srcY,
-            $dstWidth, $dstHeight,
-            $srcWidth, $srcHeight
-        );
+        if ( $srcWidth === $dstWidth && $srcHeight === $dstHeight ) {
+            $result = @imagecopy(
+                $bitmap,
+                $image->bitmap,
+                $dstX,     $dstY,
+                $srcX,     $srcY,
+                $srcWidth, $srcHeight
+            );
+        } else {
+            $result = @imagecopyresampled(
+                $bitmap,
+                $image->bitmap,
+                $dstX,     $dstY,
+                $srcX,     $srcY,
+                $dstWidth, $dstHeight,
+                $srcWidth, $srcHeight
+            );
+        }
 
         if ( !$result )
             throw new \Exception( 'Не удалось вставить изображение по неизвестной причине.' );
@@ -330,17 +351,17 @@ class Image
 
 
     /**
-     * Вращает изображение. Создаётся копия, текущий объект не модифицируется.
+     * Вращает изображение. Возвращается копия, текущий объект не модифицируется.
      *
      * @param float $angle Угол, выраженный в градусах, против часовой стрелки
-     * @param int[]|null $color Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если изображение
+     * @param float[]|null $color Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если изображение
      * повёрнуто на угол, не кратный 90°.
      * @return static Повёрнутое изображение
      * @throws \Exception Если не удалось повернуть изображение
      */
     function rotate( $angle, Array $underlay = null )
     {
-        $bitmap = imagerotate( $this->bitmap, $angle, static::allocateColor( $this->bitmap, $underlay ) );
+        $bitmap = @imagerotate( $this->bitmap, $angle, static::allocateColor( $this->bitmap, $underlay ) );
 
         if ( !$bitmap )
             throw new \Exception( 'Не удалось повернуть изображение по неизвестной причине.' );
@@ -361,6 +382,7 @@ class Image
      * @param int $epsilon Погрешность, при достижении которой нужно остановить поиск (чем меньше, тем медленнее и
      * точнее поиск)
      * @return int[][]|null Массив цветов (массив с индексами r, g и b). Null в случае непредвиденной ошибки.
+     * @throws \Exception В случае непредвиденной ошибки
      */
     public function getKMeanColors( $amount = 1, $sort = true, $maxPreSize = 30, $epsilon = 2 )
     {
@@ -373,8 +395,10 @@ class Image
         $newW   = min( $width,  $maxPreSize );
         $newH   = min( $height, $maxPreSize );
 
-        $bitmap = imagecreatetruecolor( $newW, $newH );
-        imagecopyresized( $bitmap, $this->bitmap, 0, 0, 0, 0, $newW, $newH, $width, $height );
+        $bitmap = @imagecreatetruecolor( $newW, $newH );
+        if ( !$bitmap ) throw new \Exception( 'Не удалось создать уменьшенное изображение.' );
+        @imagealphablending( $bitmap, false );
+        @imagecopyresized( $bitmap, $this->bitmap, 0, 0, 0, 0, $newW, $newH, $width, $height );
 
         $pixelsAmount = $newW * $newH;
         $pixels = Array();
@@ -388,8 +412,8 @@ class Image
                 );
             }
 
-        imagedestroy( $bitmap );
-        
+        @imagedestroy( $bitmap );
+
         $clusters = Array();
         $pixelsChosen = Array();
         for ( $i = 0; $i < $amount; ++$i ) {
@@ -399,7 +423,7 @@ class Image
             $pixelsChosen[] = $id;
             $clusters[] = $pixels[ $id ];
         }
-        
+
         $clustersPixels = Array();
         $clustersAmounts = Array();
         do {
@@ -407,7 +431,7 @@ class Image
                 $clustersPixels[ $i ] = Array();
                 $clustersAmounts[ $i ] = 0;
             }
-            
+
             for ( $i = 0; $i < $pixelsAmount; ++$i ) {
                 $distMin = -1;
                 $id = 0;
@@ -421,7 +445,7 @@ class Image
                 $clustersPixels[ $id ][] = $i;
                 ++$clustersAmounts[$id];
             }
-            
+
             $diff = 0;
             for( $i = 0; $i < $amount; ++$i ) {
                 if( $clustersAmounts[ $i ] > 0 ) {
@@ -437,19 +461,19 @@ class Image
                 }
             }
         } while( $diff >= $eps );
-        
+
         if ( $sort and $amount > 1 )
             for ( $i = 1; $i < $amount; ++$i )
                 for( $j = $i; $j >= 1 && $clustersAmounts[ $j ] > $clustersAmounts[ $j - 1 ]; --$j ) {
                     $t = $clustersAmounts[ $j - 1 ];
                     $clustersAmounts[ $j - 1 ] = $clustersAmounts[ $j ];
                     $clustersAmounts[ $j ] = $t;
-                    
+
                     $t = $clusters[ $j - 1 ];
                     $clusters[ $j - 1 ] = $clusters[ $j ];
                     $clusters[ $j ] = $t;
                 }
-        
+
         for ( $i = 0; $i < $amount; ++$i )
             for ( $j = 0; $j < 3; ++$j )
                 $clusters[ $i ][ $j ] = floor( $clusters[ $i ][ $j ] );
@@ -553,10 +577,10 @@ class Image
         if ( !$saved )
             $result = static::saveImage( $this->bitmap, $file, $type, $quality );
 
-        clearstatcache( true, $file );
-
         if ( !$result )
             throw new \Exception( 'Не удалось сохранить файл.' );
+
+        @clearstatcache( true, $file );
 
         return $this;
     }
@@ -591,7 +615,7 @@ class Image
         $file = $dir . DIRECTORY_SEPARATOR . $name . $extension;
         $counter = 0;
 
-        while ( $rewrite && !is_file( $file ) || !$rewrite && file_exists( $file ) )
+        while ( file_exists( $file ) && ( $rewrite && !is_file( $file ) || !$rewrite ) )
             $file = $dir . DIRECTORY_SEPARATOR . $name . '('. ++$counter .')' . $extension;
 
         $this->toFile( $file, $type, $quality );
@@ -613,8 +637,20 @@ class Image
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
-        $bitmap = imagecreatetruecolor( $width, $height );
-        imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
+
+        try {
+            $bitmap = @imagecreatetruecolor( $width, $height );
+            if ( !$bitmap )
+                throw new \Exception;
+
+            $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
+            if ( !$result )
+                throw new \Exception;
+
+        } catch ( \Exception $e ) {
+            throw new \Exception( 'Не удалось скопировать ресурс изображение. Возможно, не хватает оперативной памяти.' );
+        }
+
         return $bitmap;
     }
 
@@ -623,8 +659,8 @@ class Image
      * Генерирует цвет для использования в функциях, работающих с ресурсами изображения.
      *
      * @param resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
-     * @param int[]|null $color Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
-     * то изображение будет полностью прозрачным.
+     * @param float[]|null $color Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
+     * то изображение будет полностью прозрачным. Значение альфа-канала: 0 –
      * @return int
      * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
      */
@@ -640,10 +676,10 @@ class Image
             ? imagecolorallocatealpha( $bitmap, 0, 0, 0, 127 )
             : imagecolorallocatealpha(
                 $bitmap,
-                empty( $fill[ 'r' ] ) ? 0 : $fill[ 'r' ],
-                empty( $fill[ 'g' ] ) ? 0 : $fill[ 'g' ],
-                empty( $fill[ 'b' ] ) ? 0 : $fill[ 'b' ],
-                empty( $fill[ 'a' ] ) ? 0 : $fill[ 'a' ]
+                empty( $fill[ 'r' ] ) ? 0 : round( $fill[ 'r' ] ),
+                empty( $fill[ 'g' ] ) ? 0 : round( $fill[ 'g' ] ),
+                empty( $fill[ 'b' ] ) ? 0 : round( $fill[ 'b' ] ),
+                empty( $fill[ 'a' ] ) ? 0 : round( ( 1 - $fill[ 'a' ] ) * 127 )
             );
     }
 
@@ -827,19 +863,21 @@ class Image
     {
         switch ( $type ) {
             case IMAGETYPE_JPEG:
-                return imagejpeg( $bitmap, $file, $quality * 100 );
+                return @imagejpeg( $bitmap, $file, $quality * 100 );
 
             case IMAGETYPE_BMP:
             case IMAGETYPE_WBMP:
-                return imagewbmp( $bitmap, $file );
+                return @imagewbmp( $bitmap, $file );
 
             case IMAGETYPE_PNG:
-                imagesavealpha( $bitmap, true );
-                return imagepng( $bitmap, $file );
+                @imagealphablending( $bitmap, false );
+                @imagesavealpha( $bitmap, true );
+                $result = @imagepng( $bitmap, $file );
+                @imagealphablending( $bitmap, true );
+                return $result;
 
             case IMAGETYPE_GIF:
-                imagesavealpha( $bitmap, true );
-                return imagegif( $bitmap, $file );
+                return @imagegif( $bitmap, $file );
 
             default:
                 throw new \InvalidArgumentException( 'Указан неизвестный формат (' . $type . ').' );
