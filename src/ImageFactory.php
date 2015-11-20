@@ -123,6 +123,25 @@ class ImageFactory
 
 
     /**
+     * Создаёт изображение на основе скриншота экрана.
+     *
+     * @return Image
+     * @throws \Exception В случае непредвиденной ошибки
+     */
+    public function screenshot()
+    {
+        if ( !function_exists( 'imagegrabscreen' ) )
+            throw new \Exception( 'Текущая сборка PHP не может делать скриншоты.' );
+
+        $bitmap = @imagegrabscreen();
+        if ( !$bitmap )
+            throw new \Exception( 'Не удалось сделать скриншот по неизвестным причинам.' );
+
+        return new Image( $bitmap, true );
+    }
+
+
+    /**
      * Расширяет ограничение на количество используемой скритом оперативной памяти сервера до установленного значения.
      *
      * @param int $minSize Количество байт
