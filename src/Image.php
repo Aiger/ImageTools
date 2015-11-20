@@ -84,14 +84,12 @@ class Image
 
     /**
      * Клонирует изображение, в том числе полностью копирует его ресурс.
+     * @throws \Exception В случае непредвиденной ошибки
      */
     public function __clone()
     {
-        try {
-            $this->bitmap = $this->toResource();
-        } catch ( \Exception $e ) {
-            $this->bitmap = null;
-        }
+        $this->bitmap = $this->toResource();
+        @imagealphablending( $this->bitmap, true );
     }
 
 
@@ -239,19 +237,18 @@ class Image
 
 
     /**
-     * Пишет текст на изображении. Возвращается копия, текущий объект не модифицируется.
+     * Пишет строку текста на изображении. Возвращается копия, текущий объект не модифицируется.
      *
      * @param string $text Текст, который нужно написать
-     * @param string $font Путь к файлу шрифта, которым нужно сделать надпись, на сервере
+     * @param string $font Путь к .ttf файлу шрифта, которым нужно сделать надпись, на сервере
      * @param float $fontSize Размер шрифта
-     * @param float[] $color Цвет (массив с индексами r, g, b и по желанию a)
      * @param int $x Координата X блока текста
-     * @param int $y Координата Y блока текста
+     * @param int $y Координата Y baseline-строки текста
+     * @param float[] $color Цвет (массив с индексами r, g, b и по желанию a)
      * @param float $alignHor Положение текста по горизонтали (от 0 (слева от указанной точки) до 1 (справа от указанной
      * точки))
-     * @param float $alignVer Положение текста по вертикали (от 0 (снизу от указанной точки) до 1 (сверху от указанной
-     * точки))
-     * @param float $angle Угол поворота текста в градусах (против часовой стрелки)
+     * @param float $angle Угол поворота текста в градусах (против часовой стрелки). Вращение производится вокруг точки,
+     * являющейся началом baseline-строки (независимо от значения аргумента $alignHor) .
      * @return static Изображение с надписью
      * @throws \Exception Если не удалось поместить текст
      */
@@ -259,11 +256,10 @@ class Image
         $text,
         $font,
         $fontSize = 12.0,
-        Array $color = Array( 'r' => 0, 'g' => 0, 'b' => 0 ),
         $x = 0,
         $y = 0,
+        Array $color = Array( 'r' => 0, 'g' => 0, 'b' => 0 ),
         $alignHor = .0,
-        $alignVer = .0,
         $angle = .0
     ) {
         try {
@@ -272,18 +268,17 @@ class Image
                 throw new \Exception;
 
             $width  = $coord[ 2 ] - $coord[ 0 ];
-            $height = $coord[ 1 ] - $coord[ 7 ];
             $x -= $width  * $alignHor;
-            $y -= $height * $alignVer;
             $color = static::allocateColor( $this->bitmap, $color );
             $bitmap = $this->toResource();
+        	@imagealphablending( $bitmap, true );
 
             $result = @imagettftext( $bitmap, $fontSize, $angle, $x, $y, $color, $font, $text );
             if ( !$result )
                 throw new \Exception;
 
         } catch ( \Exception $e ) {
-            throw new \Exception( 'Не поместить текст на изображении по неизвестной причине.' );
+            throw new \Exception( 'Не удалось поместить текст на изображении по неизвестной причине.' );
         }
 
         $newImage = static::construct( $bitmap );
@@ -331,6 +326,7 @@ class Image
         if( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
 
         $bitmap = $this->toResource();
+        @imagealphablending( $bitmap, true );
 
         if ( $srcWidth === $dstWidth && $srcHeight === $dstHeight ) {
             $result = @imagecopy(
@@ -717,13 +713,13 @@ class Image
             throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
 
         return is_null( $color )
-            ? imagecolorallocatealpha( $bitmap, 0, 0, 0, 127 )
+            ? imagecolortransparent( $bitmap )
             : imagecolorallocatealpha(
                 $bitmap,
-                empty( $fill[ 'r' ] ) ? 0 : round( $fill[ 'r' ] ),
-                empty( $fill[ 'g' ] ) ? 0 : round( $fill[ 'g' ] ),
-                empty( $fill[ 'b' ] ) ? 0 : round( $fill[ 'b' ] ),
-                empty( $fill[ 'a' ] ) ? 0 : round( ( 1 - $fill[ 'a' ] ) * 127 )
+                empty( $color[ 'r' ] ) ? 0 : round( $color[ 'r' ] ),
+                empty( $color[ 'g' ] ) ? 0 : round( $color[ 'g' ] ),
+                empty( $color[ 'b' ] ) ? 0 : round( $color[ 'b' ] ),
+                empty( $color[ 'a' ] ) ? 0 : round( ( 1 - $color[ 'a' ] ) * 127 )
             );
     }
 
