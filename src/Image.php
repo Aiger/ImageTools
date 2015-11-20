@@ -58,6 +58,7 @@ class Image
      * @param bool $isTransparent Имеет ли переданное в $bitmap изображение прозрачность. Не существенный аргумент,
      * используется только для выбора формата при сохранении.
      * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
+     * @throws \Exception В случае непредвиденной ошибки
      */
     public function __construct( $bitmap, $isTransparent = false )
     {
@@ -69,6 +70,13 @@ class Image
 
         $this->bitmap = $bitmap;
         $this->isTransparent = $isTransparent;
+
+        // Работаем только с True Color
+        if ( !imageistruecolor( $this->bitmap ) ) {
+        	$bitmap = $this->toResource();
+        	@imagedestroy( $this->bitmap );
+        	$this->bitmap = $bitmap;
+        }
 
         @imagealphablending( $this->bitmap, true );
     }
@@ -380,7 +388,6 @@ class Image
      * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
      * @return static Изображение, к которому применена указанная прозрачность
      * @throws \InvalidArgumentException Если указанная прозрачность не является числом
-     * @throws \Exception В случае непредвиденной ошибки
      */
     function setOpaque( $opacity )
     {
@@ -394,14 +401,17 @@ class Image
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
-        $bitmap = @imagecreatetruecolor( $width, $height );
+        $bitmap = $this->toResource();
 
-        $color = @imagecolortransparent( $bitmap );
-        @imagefill( $bitmap, 0, 0, $color );
-        $result = @imagecopymerge( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height, $opacity * 100 );
-
-        if ( !$result )
-            throw new \Exception( 'Не удалось сделать полупрозрачное изображение по неизвестной причине.' );
+        for ( $x = 0; $x < $width; ++$x )
+        	for ( $y = 0; $y < $height; ++$y ) {
+        		$color = imagecolorat( $bitmap, $x, $y );
+        		$alpha = 127 - ( ( $color >> 24 ) & 0xFF );
+        		if ( $alpha > 0 ) {
+        			$color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
+        			imagesetpixel( $bitmap, $x, $y, $color );
+        		}
+        	}
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = true;
@@ -674,19 +684,16 @@ class Image
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
+        $bitmap = @imagecreatetruecolor( $width, $height );
+        @imagealphablending( $bitmap, false );
 
-        try {
-            $bitmap = @imagecreatetruecolor( $width, $height );
-            if ( !$bitmap )
-                throw new \Exception;
+        if ( !imageistruecolor( $this->bitmap ) )
+        	@imagefill( $bitmap, 0, 0, @imagecolortransparent( $bitmap ) );
 
-            $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
-            if ( !$result )
-                throw new \Exception;
+        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
 
-        } catch ( \Exception $e ) {
+        if ( !$bitmap || !$result )
             throw new \Exception( 'Не удалось скопировать ресурс изображение. Возможно, не хватает оперативной памяти.' );
-        }
 
         return $bitmap;
     }
