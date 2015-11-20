@@ -10,6 +10,9 @@
         "crop",
         "rotate",
         "print text",
+        "screenshot",
+        "opacity",
+        "transparent",
         "k-means",
         "chaining"
     ],
