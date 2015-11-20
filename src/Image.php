@@ -375,6 +375,41 @@ class Image
 
 
     /**
+     * Делает изображение полупрозрачным. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
+     * @return static Изображение, к которому применена указанная прозрачность
+     * @throws \InvalidArgumentException Если указанная прозрачность не является числом
+     * @throws \Exception В случае непредвиденной ошибки
+     */
+    function setOpaque( $opacity )
+    {
+        if ( !is_numeric( $opacity ) )
+            throw new \InvalidArgumentException( 'Opacity must be number, ' . gettype( $opacity ) . ' given.' );
+
+        if ( $opacity >= 1 )
+            return clone $this;
+
+        $opacity = min( 1, max( 0, $opacity ) );
+
+        $width  = $this->getWidth();
+        $height = $this->getHeight();
+        $bitmap = @imagecreatetruecolor( $width, $height );
+
+        $color = @imagecolortransparent( $bitmap );
+        @imagefill( $bitmap, 0, 0, $color );
+        $result = @imagecopymerge( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height, $opacity * 100 );
+
+        if ( !$result )
+            throw new \Exception( 'Не удалось сделать полупрозрачное изображение по неизвестной причине.' );
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = true;
+        return $newImage;
+    }
+
+
+    /**
      * Находит доминирующие цвета на изображении алгоритмом K-средних.
      *
      * @param int $amount Количество цветов, которые нужно найти
