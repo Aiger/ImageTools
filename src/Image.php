@@ -327,9 +327,9 @@ class Image
         if ( !is_numeric( $srcHeight ) ) $srcHeight = $image->getHeight() - $srcY;
         if ( !is_numeric( $dstWidth  ) ) $dstWidth  = $srcWidth;
         if ( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
-        $opacity = is_numeric( $opacity ) ? min( 1, max( 0, $opacity ) ) : 1;
+        if ( !is_numeric( $opacity ) ) $opacity = 1;
 
-        if ( $opacity == 0 )
+        if ( $opacity <= 0 )
             return clone $this;
 
         if ( $opacity < 1 ) {
@@ -957,7 +957,7 @@ class Image
      * @return bool Удалось ли закодировать изображение
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      */
-    protected static function saveImage( $bitmap, $file, $type, $quality = 1.0 )
+    protected static function saveImage( $bitmap, $file, $type, $quality = 0.75 )
     {
         switch ( $type ) {
             case IMAGETYPE_JPEG:
