@@ -73,9 +73,9 @@ class Image
 
         // Работаем только с True Color
         if ( !imageistruecolor( $this->bitmap ) ) {
-        	$bitmap = $this->toResource();
-        	@imagedestroy( $this->bitmap );
-        	$this->bitmap = $bitmap;
+            $bitmap = $this->toResource();
+            @imagedestroy( $this->bitmap );
+            $this->bitmap = $bitmap;
         }
 
         @imagealphablending( $this->bitmap, true );
@@ -271,7 +271,7 @@ class Image
             $x -= $width  * $alignHor;
             $color = static::allocateColor( $this->bitmap, $color );
             $bitmap = $this->toResource();
-        	@imagealphablending( $bitmap, true );
+            @imagealphablending( $bitmap, true );
 
             $result = @imagettftext( $bitmap, $fontSize, $angle, $x, $y, $color, $font, $text );
             if ( !$result )
@@ -293,10 +293,12 @@ class Image
      * @param self $image Вставляемое изображение
      * @param int $dstX Координата X на текущем изображении, куда вставить новое. По умолчанию, 0.
      * @param int $dstY Координата Y на текущем изображении, куда вставить новое. По умолчанию, 0.
-     * @param int $srcX Координата X вставляемой области вставляемого изображения. По умолчанию, 0.
-     * @param int $srcY Координата Y вставляемой области вставляемого изображения. По умолчанию, 0.
      * @param int|null $dstWidth Новая ширина вставляемой области. Если null, то такая же как $srcWidth.
      * @param int|null $dstHeight Новая Высота вставляемой области. Если null, то такая же как $srcHeight.
+     * @param float $opacity Уровень непрозрачности вставляемого изображения (от 0 – полностью прозрачное, до 1 – без
+     * прозрачности)
+     * @param int $srcX Координата X вставляемой области вставляемого изображения. По умолчанию, 0.
+     * @param int $srcY Координата Y вставляемой области вставляемого изображения. По умолчанию, 0.
      * @param int|null $srcWidth Ширина вставляемой области вставляемого изображения. Если null, то вся ширина изображения.
      * @param int|null $srcHeight Высота вставляемой области вставляемого изображения. Если null, то вся высота изображения.
      * @return static Текущее изображение с вставленным
@@ -306,24 +308,49 @@ class Image
         self $image,
         $dstX = 0,
         $dstY = 0,
-        $srcX = 0,
-        $srcY = 0,
         $dstWidth  = null,
         $dstHeight = null,
+        $opacity = 1.0,
+        $srcX = 0,
+        $srcY = 0,
         $srcWidth  = null,
         $srcHeight = null
     ) {
         if( !isset( $image->bitmap ) )
             throw new \Exception( 'В объекте вставляемого изображения нет данных изображения.' );
 
-        if( !is_numeric( $dstX ) ) $dstX = 0;
-        if( !is_numeric( $dstY ) ) $dstY = 0;
-        if( !is_numeric( $srcX ) ) $srcX = 0;
-        if( !is_numeric( $srcY ) ) $srcY = 0;
-        if( !is_numeric( $srcWidth  ) ) $srcWidth  = $image->getWidth() - $srcX;
-        if( !is_numeric( $srcHeight ) ) $srcHeight = $image->getHeight() - $srcY;
-        if( !is_numeric( $dstWidth  ) ) $dstWidth  = $srcWidth;
-        if( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
+        if ( !is_numeric( $dstX ) ) $dstX = 0;
+        if ( !is_numeric( $dstY ) ) $dstY = 0;
+        if ( !is_numeric( $srcX ) ) $srcX = 0;
+        if ( !is_numeric( $srcY ) ) $srcY = 0;
+        if ( !is_numeric( $srcWidth  ) ) $srcWidth  = $image->getWidth() - $srcX;
+        if ( !is_numeric( $srcHeight ) ) $srcHeight = $image->getHeight() - $srcY;
+        if ( !is_numeric( $dstWidth  ) ) $dstWidth  = $srcWidth;
+        if ( !is_numeric( $dstHeight ) ) $dstHeight = $srcHeight;
+        $opacity = is_numeric( $opacity ) ? min( 1, max( 0, $opacity ) ) : 1;
+
+        if ( $opacity == 0 )
+            return clone $this;
+
+        if ( $opacity < 1 ) {
+            if (
+                $srcX !== 0 || $srcY !== 0 ||
+                $srcWidth !== $image->getWidth() || $srcHeight !== $image->getHeight()
+            ) {
+                $image = $image->crop( $srcX, $srcY, $srcWidth, $srcHeight );
+                $srcX  = 0;
+                $srcY  = 0;
+            }
+
+            // Когда меньше пикселей: до или после изменения размера?
+            if ( $srcWidth * $srcHeight > $dstWidth * $dstHeight ) {
+                $image     = $image->resize( $dstWidth, $dstHeight, true, static::SIZING_EXEC );
+                $srcWidth  = $dstWidth;
+                $srcHeight = $dstHeight;
+            }
+
+            $image = $image->setOpacity( $opacity );
+        }
 
         $bitmap = $this->toResource();
         @imagealphablending( $bitmap, true );
@@ -349,6 +376,36 @@ class Image
 
         if ( !$result )
             throw new \Exception( 'Не удалось вставить изображение по неизвестной причине.' );
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
+    }
+
+
+    /**
+     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
+     * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
+     * @param int|null $width Ширина вырезаемой области. Если null, то вся ширина.
+     * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
+     * @return static Обрезанное изображение
+     * @throws \Exception В случае непредвиденной ошибки
+     */
+    function crop( $x = 0, $y = 0, $width = null, $height = null )
+    {
+        if ( !is_numeric( $x ) ) $x = 0;
+        if ( !is_numeric( $y ) ) $y = 0;
+        if ( !is_numeric( $width ) )  $width  = $this->getWidth()  - $x;
+        if ( !is_numeric( $height ) ) $height = $this->getHeight() - $y;
+
+        $bitmap = @imagecreatetruecolor( $width, $height );
+        @imagealphablending( $bitmap, false );
+        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, $x, $y, $width, $height );
+
+        if ( !$bitmap || !$result )
+            throw new \Exception( 'Не удалось обрезать изображение по неизвестной причине.' );
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = $this->isTransparent;
@@ -385,29 +442,29 @@ class Image
      * @return static Изображение, к которому применена указанная прозрачность
      * @throws \InvalidArgumentException Если указанная прозрачность не является числом
      */
-    function setOpaque( $opacity )
+    function setOpacity( $opacity )
     {
         if ( !is_numeric( $opacity ) )
             throw new \InvalidArgumentException( 'Opacity must be number, ' . gettype( $opacity ) . ' given.' );
 
-        if ( $opacity >= 1 )
-            return clone $this;
-
         $opacity = min( 1, max( 0, $opacity ) );
+
+        if ( $opacity == 1 )
+            return clone $this;
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
         $bitmap = $this->toResource();
 
         for ( $x = 0; $x < $width; ++$x )
-        	for ( $y = 0; $y < $height; ++$y ) {
-        		$color = imagecolorat( $bitmap, $x, $y );
-        		$alpha = 127 - ( ( $color >> 24 ) & 0xFF );
-        		if ( $alpha > 0 ) {
-        			$color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
-        			imagesetpixel( $bitmap, $x, $y, $color );
-        		}
-        	}
+            for ( $y = 0; $y < $height; ++$y ) {
+                $color = imagecolorat( $bitmap, $x, $y );
+                $alpha = 127 - ( ( $color >> 24 ) & 0xFF );
+                if ( $alpha > 0 ) {
+                    $color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
+                    imagesetpixel( $bitmap, $x, $y, $color );
+                }
+            }
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = true;
@@ -684,7 +741,7 @@ class Image
         @imagealphablending( $bitmap, false );
 
         if ( !imageistruecolor( $this->bitmap ) )
-        	@imagefill( $bitmap, 0, 0, @imagecolortransparent( $bitmap ) );
+            @imagefill( $bitmap, 0, 0, @imagecolortransparent( $bitmap ) );
 
         $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
 
