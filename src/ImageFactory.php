@@ -10,7 +10,8 @@ use AigerTeam\ImageTools\Exceptions\ImageFileException;
  *
  * Фабрика для создания объектов изображения.
  *
- * @author Сергей
+ * @version 1.0.5
+ * @author Finesse
  * @package AigerTeam\ImageTools
  */
 class ImageFactory
@@ -37,6 +38,8 @@ class ImageFactory
      * то изображение будет полностью прозрачным.
      * @return Image
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.0
      */
 	public function blank( $width, $height, Array $fill = null )
     {
@@ -64,6 +67,8 @@ class ImageFactory
      * @throws ImageFileException Если не удалось прочитать изображение из файла
      * @throws FileException Если не удалось открыть файл изображения
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.0
      */
 	public function openFile( $file )
     {
@@ -127,6 +132,8 @@ class ImageFactory
      *
      * @return Image
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.5
      */
     public function screenshot()
     {

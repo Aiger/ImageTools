@@ -16,6 +16,7 @@ if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
  *  - передать ресурс изображения в конструктор;
  *  - воспользоваться фабрикой ImageFactory.
  *
+ * @version 1.0.5
  * @author Finesse
  * @author maindefine
  * @package AigerTeam\ImageTools
@@ -25,18 +26,24 @@ class Image
     /**
      * Изображение масштабируется так, чтобы сохранять пропорции и не обрезаться, при этом помещаться в заданную
      * область.
+     *
+     * @since 1.0.0
      */
     const SIZING_CONTAIN = 'contain';
 
     /**
      * Изображение масштабируется так, чтобы сохранять пропорции и занимать всю заданную область, при этом края могут
      * оказаться обрезанными.
+     *
+     * @since 1.0.0
      */
     const SIZING_COVER = 'cover';
 
     /**
      * Изображение масштабируется так, чтобы занимать всю заданную область и не обрезаться, при этом пропорции могут
      * быть нарушены.
+     *
+     * @since 1.0.0
      */
     const SIZING_EXEC = 'exec';
 
@@ -85,6 +92,8 @@ class Image
     /**
      * Клонирует изображение, в том числе полностью копирует его ресурс.
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.0
      */
     public function __clone()
     {
@@ -95,6 +104,8 @@ class Image
 
     /**
      * Уничтожает изображение, в том числе уничтожает его ресурс.
+     *
+     * @since 1.0.0
      */
     public function __destruct()
     {
@@ -104,6 +115,8 @@ class Image
 
     /**
      * @return int Ширина изображения в пикселях
+     *
+     * @since 1.0.0
      */
     public function getWidth()
     {
@@ -113,6 +126,8 @@ class Image
 
     /**
      * @return int Высота изображения в пикселях
+     *
+     * @since 1.0.0
      */
     public function getHeight()
     {
@@ -124,6 +139,8 @@ class Image
      * Возвращает рекомендуемый для этого изображения формат.
      *
      * @return int Значение одной из глобальных констант IMAGETYPE_*
+     *
+     * @since 1.0.2
      */
     public function getRecommendedType()
     {
@@ -139,6 +156,8 @@ class Image
      *
      * @param bool $includeDot Включать ли точку в название расшинеия
      * @return string Название расширения, которое можно подставить в имя файла
+     *
+     * @since 1.0.2
      */
     public function getRecommendedExtension( $includeDot = false )
     {
@@ -170,6 +189,8 @@ class Image
      * @see Image::SIZING_CONTAIN
      * @see Image::SIZING_COVER
      * @see Image::SIZING_EXEC
+     *
+     * @since 1.0.0
      */
     function resize(
         $width = null,
@@ -251,6 +272,8 @@ class Image
      * являющейся началом baseline-строки (независимо от значения аргумента $alignHor) .
      * @return static Изображение с надписью
      * @throws \Exception Если не удалось поместить текст
+     *
+     * @since 1.0.0
      */
     function write(
         $text,
@@ -303,6 +326,8 @@ class Image
      * @param int|null $srcHeight Высота вставляемой области вставляемого изображения. Если null, то вся высота изображения.
      * @return static Текущее изображение с вставленным
      * @throws \Exception Если не удалось вставить изображение
+     *
+     * @since 1.0.0
      */
     function insertImage(
         self $image,
@@ -392,6 +417,8 @@ class Image
      * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
      * @return static Обрезанное изображение
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.4
      */
     function crop( $x = 0, $y = 0, $width = null, $height = null )
     {
@@ -421,6 +448,8 @@ class Image
      * изображение повёрнуто на угол, не кратный 90°.
      * @return static Повёрнутое изображение
      * @throws \Exception Если не удалось повернуть изображение
+     *
+     * @since 1.0.0
      */
     function rotate( $angle, Array $underlay = null )
     {
@@ -441,6 +470,8 @@ class Image
      * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
      * @return static Изображение, к которому применена указанная прозрачность
      * @throws \InvalidArgumentException Если указанная прозрачность не является числом
+     *
+     * @since 1.0.4
      */
     function setOpacity( $opacity )
     {
@@ -483,6 +514,8 @@ class Image
      * точнее поиск)
      * @return int[][]|null Массив цветов (массив с индексами r, g и b). Null в случае непредвиденной ошибки.
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.0
      */
     public function getKMeanColors( $amount = 1, $sort = true, $maxPreSize = 30, $epsilon = 2 )
     {
@@ -600,6 +633,8 @@ class Image
      * @return static Сам себя
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось закодировать изображение в формат
+     *
+     * @since 1.0.0
      */
     public function display( $type = null, $quality = null )
     {
@@ -628,6 +663,8 @@ class Image
      * @throws FileException Если указанный путь недоступен для записи
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось закодировать изображение в формат
+     *
+     * @since 1.0.0
      */
     public function toFile( $file, $type = null, $quality = null )
     {
@@ -700,6 +737,8 @@ class Image
      * @throws FileException При ошибках, связанных с файловыми операциями
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось закодировать изображение в формат
+     *
+     * @since 1.0.2
      */
     public function toUncertainFile( $dir, $name, $rewrite = false, $type = null, $quality = 1.0 )
     {
@@ -729,6 +768,8 @@ class Image
      *
      * @return resource Новый ресурс. Операции над ним не затронут это изображение.
      * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.1
      */
     public function toResource()
     {
@@ -760,6 +801,8 @@ class Image
      * то изображение будет полностью прозрачным. Значение альфа-канала: 0 –
      * @return int
      * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
+     *
+     * @since 1.0.0
      */
     public static function allocateColor( $bitmap, Array $color = null )
     {
