@@ -258,6 +258,66 @@ class Image
 
 
     /**
+     * Добавляет штамп или водяной знак на изображение. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param static $image Объект изображения штампа или водяного знака
+     * @param float $size Размер штампа относительно размера изображения с учётом отступов в долях единицы (0 – размер
+     * 0х0, 1 – на всю область)
+     * @param float $posX Положение штампа по горизонтали с учётом отступа (0 – левый край, 1 – правый край)
+     * @param float $posY Положение штампа по вертикали с учётом отступа (0 – верхний край, 1 – нижний край)
+     * @param float $padding Отступ штампа от краёв, указанный в долях единицы относительно длины диагонали изображения
+     * @param float $opacity Прозрачность вставляемого штампа или водяного знака (0 – полностью прозначный, 1 –
+     * полностью непрозрачный)
+     * @param bool $allowIncrease Позволять ли увеличивать изображение штампа
+     * @return Image Изображение с штампом
+     * @throws \Exception Если не удалось добавить штамп
+     *
+     * @since 1.0.5
+     */
+    public function stamp(
+        self $image,
+        $size = 0.15,
+        $posX = 1.0,
+        $posY = 1.0,
+        $padding = 0.02,
+        $opacity = 1.0,
+        $allowIncrease = true
+    ) {
+        if( !isset( $image->bitmap ) )
+            throw new \Exception( 'В объекте вставляемого изображения нет данных изображения.' );
+
+        $dstWidth  = $this->getWidth();
+        $dstHeight = $this->getHeight();
+        $srcWidth  = $image->getWidth();
+        $srcHeight = $image->getHeight();
+        $paddingPX = round( sqrt( $dstWidth * $dstWidth + $dstHeight * $dstHeight ) * $padding );
+        $dstBoxWidth  = $dstWidth  - $paddingPX * 2;
+        $dstBoxHeight = $dstHeight - $paddingPX * 2;
+
+        if ( $dstBoxWidth / $dstBoxHeight > $srcWidth / $srcHeight ) {
+            $scale = $dstBoxHeight * $size / $srcHeight;
+        } else {
+            $scale = $dstBoxWidth * $size / $srcWidth;
+        }
+
+        if ( !$allowIncrease && $scale > 1 )
+            $scale = 1;
+
+        $stampWidth  = round( $srcWidth  * $scale );
+        $stampHeight = round( $srcHeight * $scale );
+
+        return $this->insertImage(
+            $image,
+            round( $paddingPX + ( $dstBoxWidth  - $stampWidth  ) * $posX ),
+            round( $paddingPX + ( $dstBoxHeight - $stampHeight ) * $posY ),
+            $stampWidth,
+            $stampHeight,
+            $opacity
+        );
+    }
+
+
+    /**
      * Пишет строку текста на изображении. Возвращается копия, текущий объект не модифицируется.
      *
      * @param string $text Текст, который нужно написать
@@ -303,6 +363,101 @@ class Image
         } catch ( \Exception $e ) {
             throw new \Exception( 'Не удалось поместить текст на изображении по неизвестной причине.' );
         }
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
+    }
+
+
+    /**
+     * Вращает изображение. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param float $angle Угол, выраженный в градусах, против часовой стрелки
+     * @param float[]|null $underlay Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если
+     * изображение повёрнуто на угол, не кратный 90°.
+     * @return static Повёрнутое изображение
+     * @throws \Exception Если не удалось повернуть изображение
+     *
+     * @since 1.0.0
+     */
+    function rotate( $angle, Array $underlay = null )
+    {
+        $bitmap = @imagerotate( $this->bitmap, $angle, static::allocateColor( $this->bitmap, $underlay ) );
+
+        if ( !$bitmap )
+            throw new \Exception( 'Не удалось повернуть изображение по неизвестной причине.' );
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
+    }
+
+
+    /**
+     * Делает изображение полупрозрачным. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
+     * @return static Изображение, к которому применена указанная прозрачность
+     * @throws \InvalidArgumentException Если указанная прозрачность не является числом
+     *
+     * @since 1.0.4
+     */
+    function setOpacity( $opacity )
+    {
+        if ( !is_numeric( $opacity ) )
+            throw new \InvalidArgumentException( 'Opacity must be number, ' . gettype( $opacity ) . ' given.' );
+
+        $opacity = min( 1, max( 0, $opacity ) );
+
+        if ( $opacity == 1 )
+            return clone $this;
+
+        $width  = $this->getWidth();
+        $height = $this->getHeight();
+        $bitmap = $this->toResource();
+
+        for ( $x = 0; $x < $width; ++$x )
+            for ( $y = 0; $y < $height; ++$y ) {
+                $color = imagecolorat( $bitmap, $x, $y );
+                $alpha = 127 - ( ( $color >> 24 ) & 0xFF );
+                if ( $alpha > 0 ) {
+                    $color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
+                    imagesetpixel( $bitmap, $x, $y, $color );
+                }
+            }
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = true;
+        return $newImage;
+    }
+
+
+    /**
+     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
+     * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
+     * @param int|null $width Ширина вырезаемой области. Если null, то вся ширина.
+     * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
+     * @return static Обрезанное изображение
+     * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.4
+     */
+    function crop( $x = 0, $y = 0, $width = null, $height = null )
+    {
+        if ( !is_numeric( $x ) ) $x = 0;
+        if ( !is_numeric( $y ) ) $y = 0;
+        if ( !is_numeric( $width ) )  $width  = $this->getWidth()  - $x;
+        if ( !is_numeric( $height ) ) $height = $this->getHeight() - $y;
+
+        $bitmap = @imagecreatetruecolor( $width, $height );
+        @imagealphablending( $bitmap, false );
+        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, $x, $y, $width, $height );
+
+        if ( !$bitmap || !$result )
+            throw new \Exception( 'Не удалось обрезать изображение по неизвестной причине.' );
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = $this->isTransparent;
@@ -404,101 +559,6 @@ class Image
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = $this->isTransparent;
-        return $newImage;
-    }
-
-
-    /**
-     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
-     *
-     * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
-     * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
-     * @param int|null $width Ширина вырезаемой области. Если null, то вся ширина.
-     * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
-     * @return static Обрезанное изображение
-     * @throws \Exception В случае непредвиденной ошибки
-     *
-     * @since 1.0.4
-     */
-    function crop( $x = 0, $y = 0, $width = null, $height = null )
-    {
-        if ( !is_numeric( $x ) ) $x = 0;
-        if ( !is_numeric( $y ) ) $y = 0;
-        if ( !is_numeric( $width ) )  $width  = $this->getWidth()  - $x;
-        if ( !is_numeric( $height ) ) $height = $this->getHeight() - $y;
-
-        $bitmap = @imagecreatetruecolor( $width, $height );
-        @imagealphablending( $bitmap, false );
-        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, $x, $y, $width, $height );
-
-        if ( !$bitmap || !$result )
-            throw new \Exception( 'Не удалось обрезать изображение по неизвестной причине.' );
-
-        $newImage = static::construct( $bitmap );
-        $newImage->isTransparent = $this->isTransparent;
-        return $newImage;
-    }
-
-
-    /**
-     * Вращает изображение. Возвращается копия, текущий объект не модифицируется.
-     *
-     * @param float $angle Угол, выраженный в градусах, против часовой стрелки
-     * @param float[]|null $underlay Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если
-     * изображение повёрнуто на угол, не кратный 90°.
-     * @return static Повёрнутое изображение
-     * @throws \Exception Если не удалось повернуть изображение
-     *
-     * @since 1.0.0
-     */
-    function rotate( $angle, Array $underlay = null )
-    {
-        $bitmap = @imagerotate( $this->bitmap, $angle, static::allocateColor( $this->bitmap, $underlay ) );
-
-        if ( !$bitmap )
-            throw new \Exception( 'Не удалось повернуть изображение по неизвестной причине.' );
-
-        $newImage = static::construct( $bitmap );
-        $newImage->isTransparent = $this->isTransparent;
-        return $newImage;
-    }
-
-
-    /**
-     * Делает изображение полупрозрачным. Возвращается копия, текущий объект не модифицируется.
-     *
-     * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
-     * @return static Изображение, к которому применена указанная прозрачность
-     * @throws \InvalidArgumentException Если указанная прозрачность не является числом
-     *
-     * @since 1.0.4
-     */
-    function setOpacity( $opacity )
-    {
-        if ( !is_numeric( $opacity ) )
-            throw new \InvalidArgumentException( 'Opacity must be number, ' . gettype( $opacity ) . ' given.' );
-
-        $opacity = min( 1, max( 0, $opacity ) );
-
-        if ( $opacity == 1 )
-            return clone $this;
-
-        $width  = $this->getWidth();
-        $height = $this->getHeight();
-        $bitmap = $this->toResource();
-
-        for ( $x = 0; $x < $width; ++$x )
-            for ( $y = 0; $y < $height; ++$y ) {
-                $color = imagecolorat( $bitmap, $x, $y );
-                $alpha = 127 - ( ( $color >> 24 ) & 0xFF );
-                if ( $alpha > 0 ) {
-                    $color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
-                    imagesetpixel( $bitmap, $x, $y, $color );
-                }
-            }
-
-        $newImage = static::construct( $bitmap );
-        $newImage->isTransparent = true;
         return $newImage;
     }
 

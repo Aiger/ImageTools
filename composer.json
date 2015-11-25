@@ -1,7 +1,7 @@
 {
     "name": "aiger-team/image-tools",
     "type": "library",
-    "description": "PHP tools for editing images in object-oriented way.",
+    "description": "Light PHP tool for editing images using method chaining style. Made in «no hidden dependencies» style.",
     "keywords": [
         "images",
         "pictures",
@@ -14,7 +14,9 @@
         "opacity",
         "transparent",
         "k-means",
-        "chaining"
+        "chaining",
+        "watermark",
+        "stamp"
     ],
     "homepage": "https://github.com/FinesseRus/ImageTools",
     "authors": [
