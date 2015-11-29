@@ -19,6 +19,7 @@
         "stamp"
     ],
     "homepage": "https://github.com/FinesseRus/ImageTools",
+    "license": "MIT",
     "authors": [
         {
             "name": "Finesse",
