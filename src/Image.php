@@ -50,7 +50,8 @@ class Image
     /**
      * @var resource Ресурс изображения. Предполагается, что:
      *   - после выполнения конструктора в этом атрибуте всегда есть значение указанного типа;
-     *   - значение параметра imagealphablending всегда установлено в true.
+     *   - значение параметра imagealphablending всегда установлено в true;
+     *   - цветовой режим всегда True Color.
      */
     protected $bitmap;
 
@@ -75,17 +76,16 @@ class Image
         if ( get_resource_type( $bitmap ) !== 'gd' )
             throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
 
-        $this->bitmap = $bitmap;
-        $this->isTransparent = $isTransparent;
-
-        // Работаем только с True Color
-        if ( !imageistruecolor( $this->bitmap ) ) {
-            $bitmap = $this->toResource();
-            @imagedestroy( $this->bitmap );
-            $this->bitmap = $bitmap;
+        if ( !imageistruecolor( $bitmap ) ) {
+            $bitmap2 = static::copyBitmap( $bitmap );
+            @imagedestroy( $bitmap );
+            $bitmap = $bitmap2;
         }
 
-        @imagealphablending( $this->bitmap, true );
+        @imagealphablending( $bitmap, true );
+
+        $this->bitmap = $bitmap;
+        $this->isTransparent = $isTransparent;
     }
 
 
@@ -97,7 +97,7 @@ class Image
      */
     public function __clone()
     {
-        $this->bitmap = $this->toResource();
+        $this->bitmap = static::copyBitmap( $this->bitmap );
         @imagealphablending( $this->bitmap, true );
     }
 
@@ -434,38 +434,6 @@ class Image
 
 
     /**
-     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
-     *
-     * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
-     * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
-     * @param int|null $width Ширина вырезаемой области. Если null, то вся ширина.
-     * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
-     * @return static Обрезанное изображение
-     * @throws \Exception В случае непредвиденной ошибки
-     *
-     * @since 1.0.4
-     */
-    function crop( $x = 0, $y = 0, $width = null, $height = null )
-    {
-        if ( !is_numeric( $x ) ) $x = 0;
-        if ( !is_numeric( $y ) ) $y = 0;
-        if ( !is_numeric( $width ) )  $width  = $this->getWidth()  - $x;
-        if ( !is_numeric( $height ) ) $height = $this->getHeight() - $y;
-
-        $bitmap = @imagecreatetruecolor( $width, $height );
-        @imagealphablending( $bitmap, false );
-        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, $x, $y, $width, $height );
-
-        if ( !$bitmap || !$result )
-            throw new \Exception( 'Не удалось обрезать изображение по неизвестной причине.' );
-
-        $newImage = static::construct( $bitmap );
-        $newImage->isTransparent = $this->isTransparent;
-        return $newImage;
-    }
-
-
-    /**
      * Вставляет указанное изображение в текущее. Возвращается копия, текущий объект не модифицируется.
      *
      * @param self $image Вставляемое изображение
@@ -556,6 +524,38 @@ class Image
 
         if ( !$result )
             throw new \Exception( 'Не удалось вставить изображение по неизвестной причине.' );
+
+        $newImage = static::construct( $bitmap );
+        $newImage->isTransparent = $this->isTransparent;
+        return $newImage;
+    }
+
+
+    /**
+     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
+     *
+     * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
+     * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
+     * @param int|null $width Ширина вырезаемой области. Если null, то вся ширина.
+     * @param int|null $height Новая Высота вырезаемой области. Если null, вся высота.
+     * @return static Обрезанное изображение
+     * @throws \Exception В случае непредвиденной ошибки
+     *
+     * @since 1.0.4
+     */
+    function crop( $x = 0, $y = 0, $width = null, $height = null )
+    {
+        if ( !is_numeric( $x ) ) $x = 0;
+        if ( !is_numeric( $y ) ) $y = 0;
+        if ( !is_numeric( $width ) )  $width  = $this->getWidth()  - $x;
+        if ( !is_numeric( $height ) ) $height = $this->getHeight() - $y;
+
+        $bitmap = @imagecreatetruecolor( $width, $height );
+        @imagealphablending( $bitmap, false );
+        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, $x, $y, $width, $height );
+
+        if ( !$bitmap || !$result )
+            throw new \Exception( 'Не удалось обрезать изображение по неизвестной причине.' );
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = $this->isTransparent;
@@ -689,7 +689,7 @@ class Image
      *
      * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
      * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
-     * @param float|null $quality Качество сохранения (от 0 до 1)
+     * @param float|null $quality Качество сохранения: от 0 (небольшой вес) до 1 (хорошее качество)
      * @return static Сам себя
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      * @throws \Exception Если не удалось закодировать изображение в формат
@@ -718,7 +718,7 @@ class Image
      * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
      * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании названия файла и рекомендуемого
      * формата.
-     * @param float|null $quality Качество сохранения (от 0 до 1)
+     * @param float|null $quality Качество сохранения: от 0 (небольшой вес) до 1 (хорошее качество)
      * @return static Сам себя
      * @throws FileException Если указанный путь недоступен для записи
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
@@ -792,7 +792,7 @@ class Image
      * подобрано так, чтобы не совпадать с существующим файлом.
      * @param int|null $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
      * констант IMAGETYPE_*. Если null, то будет подобран автоматически на основании рекомендуемого формата.
-     * @param float|null $quality Качество сохранения (от 0 до 1)
+     * @param float|null $quality Качество сохранения: от 0 (небольшой вес) до 1 (хорошее качество)
      * @return string Путь, по которому сохранён файл
      * @throws FileException При ошибках, связанных с файловыми операциями
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
@@ -833,23 +833,7 @@ class Image
      */
     public function toResource()
     {
-        if ( !isset( $this->bitmap ) )
-            throw new \Exception( 'В этом объекте нет данных изображения.' );
-
-        $width  = $this->getWidth();
-        $height = $this->getHeight();
-        $bitmap = @imagecreatetruecolor( $width, $height );
-        @imagealphablending( $bitmap, false );
-
-        if ( !imageistruecolor( $this->bitmap ) )
-            @imagefill( $bitmap, 0, 0, @imagecolortransparent( $bitmap ) );
-
-        $result = @imagecopy( $bitmap, $this->bitmap, 0, 0, 0, 0, $width, $height );
-
-        if ( !$bitmap || !$result )
-            throw new \Exception( 'Не удалось скопировать ресурс изображение. Возможно, не хватает оперативной памяти.' );
-
-        return $bitmap;
+        return static::copyBitmap( $this->bitmap );
     }
 
 
@@ -858,7 +842,7 @@ class Image
      *
      * @param resource $bitmap Ресурс изображения, для которого нужно сгенерировать цвет
      * @param float[]|null $color Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
-     * то изображение будет полностью прозрачным. Значение альфа-канала: 0 –
+     * то изображение будет полностью прозрачным. Значение альфа-канала: от 0 (прозрачный) до 1 (непрозрачный).
      * @return int
      * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
      *
@@ -873,7 +857,7 @@ class Image
             throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
 
         return is_null( $color )
-            ? imagecolortransparent( $bitmap )
+            ? imagecolorallocatealpha( $bitmap, 0, 0, 0, 127 )
             : imagecolorallocatealpha(
                 $bitmap,
                 empty( $color[ 'r' ] ) ? 0 : round( $color[ 'r' ] ),
@@ -1056,7 +1040,7 @@ class Image
      * в главный вывод (на сайт).
      * @param int $type Формат, в который нужно сохранить изображение. Значение — значение одной из глобальных
      * констант IMAGETYPE_*.
-     * @param float $quality Качество сохранения (от 0 до 1)
+     * @param float $quality Качество сохранения: от 0 (небольшой вес) до 1 (хорошее качество)
      * @return bool Удалось ли закодировать изображение
      * @throws \InvalidArgumentException Если указанный формат не поддерживается
      */
@@ -1152,5 +1136,40 @@ class Image
 
             @clearstatcache( true, $dir );
         }
+    }
+
+
+    /**
+     * Копирует ресурс изображения. Скопированный ресурс всегда имеет цветовой режим True Color.
+     *
+     * @param resource $bitmap DG-ресурс изображения, которое нужно скопировать
+     * @return resource DG-ресурс скопированного изображения
+     * @throws \InvalidArgumentException Если указан не ресурс или указанный ресурс не является ресурсом изображения
+     * @throws \Exception В случае непредвиденной ошибки
+     */
+    protected static function copyBitmap( $bitmap )
+    {
+        if ( !is_resource( $bitmap ) )
+            throw new \InvalidArgumentException( 'Аргумент $bitmap не является ресурсом.' );
+
+        if ( get_resource_type( $bitmap ) !== 'gd' )
+            throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
+
+        $width  = @imagesx( $bitmap );
+        $height = @imagesy( $bitmap );
+        $bitmap2 = @imagecreatetruecolor( $width, $height );
+        @imagealphablending( $bitmap2, false );
+
+        if ( !imageistruecolor( $bitmap ) ) {
+            @imagefill( $bitmap2, 0, 0, @imagecolorallocatealpha( $bitmap2, 0, 0, 0, 127 ) );
+            @imagealphablending( $bitmap2, true );
+        }
+
+        $result = @imagecopy( $bitmap2, $bitmap, 0, 0, 0, 0, $width, $height );
+
+        if ( !$bitmap2 || !$result )
+            throw new \Exception( 'Не удалось скопировать ресурс изображение. Возможно, не хватает оперативной памяти.' );
+
+        return $bitmap2;
     }
 }
