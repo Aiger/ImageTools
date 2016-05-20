@@ -1057,7 +1057,7 @@ class Image
             case IMAGETYPE_PNG:
                 @imagealphablending( $bitmap, false );
                 @imagesavealpha( $bitmap, true );
-                $result = @imagepng( $bitmap, $file );
+                $result = @imagepng( $bitmap, $file, 9 );
                 @imagealphablending( $bitmap, true );
                 return $result;
 
@@ -1169,7 +1169,7 @@ class Image
         $result = @imagecopy( $bitmap2, $bitmap, 0, 0, 0, 0, $width, $height );
 
         if ( !$bitmap2 || !$result )
-            throw new \Exception( 'Не удалось скопировать ресурс изображение. Возможно, не хватает оперативной памяти.' );
+            throw new \Exception( 'Не удалось скопировать ресурс изображения. Возможно, не хватает оперативной памяти.' );
 
         return $bitmap2;
     }
