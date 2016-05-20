@@ -9,14 +9,15 @@ if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
 /**
  * Class Image
  *
- * Класс-обёртка для изображений, предоставляющая объектный интерфейс, позволяющий делать цепочки вызовов, и множество
- * необходимых в повседневной деятельности методов.
+ * Класс-обёртка для изображений, предоставляющая объектный интерфейс. Используется стиль «неизменный объект», то есть
+ * ни один из методов объекта не изменяет его, вместо этого они возвращают новый объект с применёнными изменениями 
+ * (если что-то изменилось), или исходный объект (если ничего не изменилось).
  *
  * Для создания объекта этого класса можно:
  *  - передать ресурс изображения в конструктор;
  *  - воспользоваться фабрикой ImageFactory.
  *
- * @version 1.0.5
+ * @version 1.0.6
  * @author Finesse
  * @author maindefine
  * @package AigerTeam\ImageTools
@@ -77,9 +78,8 @@ class Image
             throw new \InvalidArgumentException( 'Указанный ресурс (аргумент $bitmap) не является ресурсом изображения.' );
 
         if ( !imageistruecolor( $bitmap ) ) {
-            $bitmap2 = static::copyBitmap( $bitmap );
-            @imagedestroy( $bitmap );
-            $bitmap = $bitmap2;
+            if ( !@imagepalettetotruecolor( $bitmap ) )
+                throw new \Exception( 'Не удалось преобразовать изображение в True Color. Возможно, не хватает оперативной памяти.' );
         }
 
         @imagealphablending( $bitmap, true );
@@ -166,7 +166,7 @@ class Image
 
 
     /**
-     * Изменяет размер изображения. Возвращается копия, текущий объект не модифицируется.
+     * Изменяет размер изображения.
      *
      * @param int|null $width Желаемая ширина изображения. Если null, то будет рассчитана из высоты с сохранением
      * пропорций. Нужно обязательно указать ширину и/или высоту.
@@ -233,7 +233,7 @@ class Image
         );
 
         if ( !$params )
-            return clone $this;
+            return $this;
 
 
         // Непосредственно масштабирование
@@ -258,7 +258,7 @@ class Image
 
 
     /**
-     * Добавляет штамп или водяной знак на изображение. Возвращается копия, текущий объект не модифицируется.
+     * Добавляет штамп или водяной знак на изображение.
      *
      * @param static $image Объект изображения штампа или водяного знака
      * @param float $size Размер штампа относительно размера изображения с учётом отступов в долях единицы (0 – размер
@@ -318,7 +318,7 @@ class Image
 
 
     /**
-     * Пишет строку текста на изображении. Возвращается копия, текущий объект не модифицируется.
+     * Пишет строку текста на изображении.
      *
      * @param string $text Текст, который нужно написать
      * @param string $font Путь к .ttf файлу шрифта, которым нужно сделать надпись, на сервере
@@ -371,7 +371,7 @@ class Image
 
 
     /**
-     * Вращает изображение. Возвращается копия, текущий объект не модифицируется.
+     * Вращает изображение.
      *
      * @param float $angle Угол, выраженный в градусах, против часовой стрелки
      * @param float[]|null $underlay Цвет фона (массив с индексами r, g, b и по желанию a). Фон появляется, если
@@ -395,7 +395,7 @@ class Image
 
 
     /**
-     * Делает изображение полупрозрачным. Возвращается копия, текущий объект не модифицируется.
+     * Делает изображение полупрозрачным.
      *
      * @param float $opacity Уровень непрозрачности (от 0 – полностью прозрачное, до 1 – без прозрачности)
      * @return static Изображение, к которому применена указанная прозрачность
@@ -411,7 +411,7 @@ class Image
         $opacity = min( 1, max( 0, $opacity ) );
 
         if ( $opacity == 1 )
-            return clone $this;
+            return $this;
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
@@ -434,7 +434,7 @@ class Image
 
 
     /**
-     * Вставляет указанное изображение в текущее. Возвращается копия, текущий объект не модифицируется.
+     * Вставляет указанное изображение в текущее.
      *
      * @param self $image Вставляемое изображение
      * @param int $dstX Координата X на текущем изображении, куда вставить новое. По умолчанию, 0.
@@ -478,7 +478,7 @@ class Image
         if ( !is_numeric( $opacity ) ) $opacity = 1;
 
         if ( $opacity <= 0 )
-            return clone $this;
+            return $this;
 
         if ( $opacity < 1 ) {
             if (
@@ -532,7 +532,7 @@ class Image
 
 
     /**
-     * Обрезает изображение. Возвращается копия, текущий объект не модифицируется.
+     * Обрезает изображение.
      *
      * @param int $x Координата X откуда начинается обрезка. По умолчанию, 0.
      * @param int $y Координата Y откуда начинается обрезка. По умолчанию, 0.
@@ -1140,7 +1140,7 @@ class Image
 
 
     /**
-     * Копирует ресурс изображения. Скопированный ресурс всегда имеет цветовой режим True Color.
+     * Клонирует ресурс изображения.
      *
      * @param resource $bitmap DG-ресурс изображения, которое нужно скопировать
      * @return resource DG-ресурс скопированного изображения
@@ -1157,14 +1157,15 @@ class Image
 
         $width  = @imagesx( $bitmap );
         $height = @imagesy( $bitmap );
-        $bitmap2 = @imagecreatetruecolor( $width, $height );
-        @imagealphablending( $bitmap2, false );
 
-        if ( !imageistruecolor( $bitmap ) ) {
-            @imagefill( $bitmap2, 0, 0, @imagecolorallocatealpha( $bitmap2, 0, 0, 0, 127 ) );
-            @imagealphablending( $bitmap2, true );
+        if ( imageistruecolor( $bitmap ) ) {
+            $bitmap2 = @imagecreatetruecolor( $width, $height );
+        } else {
+            $bitmap2 = @imagecreate( $width, $height );
+            @imagepalettecopy( $bitmap2, $bitmap );
         }
 
+        @imagealphablending( $bitmap2, false );
         $result = @imagecopy( $bitmap2, $bitmap, 0, 0, 0, 0, $width, $height );
 
         if ( !$bitmap2 || !$result )
