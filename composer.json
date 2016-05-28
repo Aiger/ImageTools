@@ -1,7 +1,7 @@
 {
     "name": "aiger-team/image-tools",
     "type": "library",
-    "description": "Light PHP tool for editing images using method chaining style. Made in «no hidden dependencies» style.",
+    "description": "Light PHP tool for editing images using immutable objects style",
     "keywords": [
         "images",
         "pictures",

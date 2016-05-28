@@ -408,23 +408,32 @@ class Image
         if ( !is_numeric( $opacity ) )
             throw new \InvalidArgumentException( 'Opacity must be number, ' . gettype( $opacity ) . ' given.' );
 
-        $opacity = min( 1, max( 0, $opacity ) );
+        $opacity = max( 0, $opacity );
 
         if ( $opacity == 1 )
             return $this;
 
         $width  = $this->getWidth();
         $height = $this->getHeight();
-        $bitmap = $this->toResource();
+        $bitmap = static::copyBitmap( $this->bitmap );
 
         for ( $x = 0; $x < $width; ++$x )
             for ( $y = 0; $y < $height; ++$y ) {
                 $color = imagecolorat( $bitmap, $x, $y );
-                $alpha = 127 - ( ( $color >> 24 ) & 0xFF );
-                if ( $alpha > 0 ) {
-                    $color = ( $color & 0xFFFFFF ) | ( (int)round( 127 - $alpha * $opacity ) << 24 );
-                    imagesetpixel( $bitmap, $x, $y, $color );
-                }
+                $transparency = ( $color >> 24 ) & 0x7F;
+
+                if ( $transparency == 127 || $opacity > 1 && $transparency == 0 )
+                    continue;
+
+                $transparency /= 127;
+
+                if ( $opacity < 1 )
+                    $transparency = 1 - (1 - $transparency) * $opacity;
+                else
+                    $transparency = pow( $transparency, $opacity );
+
+                $color = ( $color & 0xFFFFFF ) | ( (int)round( $transparency * 127 ) << 24 );
+                imagesetpixel( $bitmap, $x, $y, $color );
             }
 
         $newImage = static::construct( $bitmap );
@@ -480,7 +489,7 @@ class Image
         if ( $opacity <= 0 )
             return $this;
 
-        if ( $opacity < 1 ) {
+        if ( $opacity != 1 ) {
             if (
                 $srcX !== 0 || $srcY !== 0 ||
                 $srcWidth !== $image->getWidth() || $srcHeight !== $image->getHeight()
@@ -500,7 +509,7 @@ class Image
             $image = $image->setOpacity( $opacity );
         }
 
-        $bitmap = $this->toResource();
+        $bitmap = static::copyBitmap( $this->bitmap );
         @imagealphablending( $bitmap, true );
 
         if ( $srcWidth === $dstWidth && $srcHeight === $dstHeight ) {
