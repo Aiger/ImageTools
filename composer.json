@@ -1,11 +1,12 @@
 {
     "name": "aiger-team/image-tools",
     "type": "library",
-    "description": "Light PHP tool for editing images using immutable objects style",
+    "description": "Light image editing tool with immutable objects style",
     "keywords": [
         "images",
         "pictures",
         "modify",
+        "edit",
         "resize",
         "crop",
         "rotate",
@@ -14,11 +15,11 @@
         "opacity",
         "transparent",
         "k-means",
-        "chaining",
         "watermark",
-        "stamp"
+        "stamp",
+        "immutable"
     ],
-    "homepage": "https://github.com/FinesseRus/ImageTools",
+    "homepage": "https://github.com/AigerTeam/ImageTools",
     "license": "MIT",
     "authors": [
         {

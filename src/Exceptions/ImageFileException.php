@@ -5,12 +5,9 @@ namespace AigerTeam\ImageTools\Exceptions;
 /**
  * Class FileException
  *
- * Исключение, выбрасываемое, когда не удаётся получить изображение из файла.
+ * Thrown when image can't be retrieved from the file.
  *
  * @author Finesse
  * @package AigerTeam\ImageTools\Exceptions
  */
-class ImageFileException extends FileException
-{
-
-}
+class ImageFileException extends FileException {}

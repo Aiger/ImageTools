@@ -7,7 +7,7 @@ include '../../src/exceptions/ImageFileException.php';
 
 use AigerTeam\ImageTools\ImageFactory;
 
-// Обработка изображения
+// Processing image
 $image = ( new ImageFactory() )
     ->openFile( 'example.jpg' )
     ->resize(
@@ -19,6 +19,6 @@ $image = ( new ImageFactory() )
         $_GET[ 'alignVer' ]
     );
 
-// Вывод
+// Output image
 header( 'Content-type: ' . image_type_to_mime_type( $image->getRecommendedType() ) );
 $image->display();

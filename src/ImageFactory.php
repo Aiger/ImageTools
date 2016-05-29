@@ -8,17 +8,17 @@ use AigerTeam\ImageTools\Exceptions\ImageFileException;
 /**
  * Class ImageFactory
  *
- * Фабрика для создания объектов изображения.
+ * Image factory. Creates images by various ways.
  *
- * @version 1.0.5
+ * @version 1.0.6
  * @author Finesse
  * @package AigerTeam\ImageTools
  */
 class ImageFactory
 {
     /**
-     * @param int $memoryLimit Количество байт, до которых нужно расширить ограничение на количество используемой
-     * оперативной памяти.
+     * @param int $memoryLimit Amount of bytes to which memory limit should be extended. Too small amount may cause 
+     *  "not enough memory" error while handling images.
      */
     public function __construct( $memoryLimit = 134217728 )
     {
@@ -30,14 +30,14 @@ class ImageFactory
     }
 
     /**
-     * Создаёт пустое изображение указанного размера.
+     * Creates blank image.
      *
-     * @param int $width Высота изображения в пикселях
-     * @param int $height Ширина изображения в пикселях
-     * @param float[]|null $fill Цвет заливки изображения (массив с индексами r, g, b и по желанию a). Если указать null,
-     * то изображение будет полностью прозрачным.
+     * @param int $width Image width (px)
+     * @param int $height Image height (px)
+     * @param float[]|null $fill Fill color (array with keys `r`, `g`, `b` and optional `a`). If null is provided image 
+     *  will be fully transparent.
      * @return Image
-     * @throws \Exception В случае непредвиденной ошибки
+     * @throws \Exception
      *
      * @since 1.0.0
      */
@@ -46,7 +46,7 @@ class ImageFactory
         $bitmap = @imagecreatetruecolor( $width, $height );
 
         if ( !$bitmap )
-            throw new \Exception( 'Не удалось создать изображение. Возможно, не хватает оперативной памяти.' );
+            throw new \Exception( 'Can\'t create blank image. Perhaps not enough RAM.' );
 
         $color = Image::allocateColor( $bitmap, $fill );
         $colorParts = imagecolorsforindex( $bitmap, $color );
@@ -58,59 +58,54 @@ class ImageFactory
 		return new Image( $bitmap, $isTransparent );
 	}
 
-
     /**
-     * Создаёт объект изображения, читая его из файла изображения.
+     * Reads image from file.
      *
-     * @param string $file Путь к файлу изображения на сервере
+     * @param string $file Path to the image file in the filesystem.
      * @return Image
-     * @throws ImageFileException Если не удалось прочитать изображение из файла
-     * @throws FileException Если не удалось открыть файл изображения
-     * @throws \Exception В случае непредвиденной ошибки
+     * @throws ImageFileException If image can't be retrieved from the file
+     * @throws FileException If file can't be read
+     * @throws \Exception In case of other error
      *
      * @since 1.0.0
      */
 	public function openFile( $file )
     {
-        // Очистка кеша информации о файле
-        try {
-            clearstatcache( true, $file );
-        } catch ( \Exception $e ) {
-            throw new FileException( 'Не удалось очистить кэш информации о файле. Ошибка: ' . $e->getMessage(), $file );
-        }
+        // Clear file info cache
+        @clearstatcache( true, $file );
 
-        // Проверка, существует ли файл
+        // Does file exist?
         if ( !file_exists( $file ) || !is_file( $file ) )
-            throw new FileException( 'Файл не существует или не является файлом.', $file );
+            throw new FileException( 'Given file doesn\'t exist or not a file.', $file );
 
-        // Проверка файла на возможность чтения
+        // Is it readable?
         if ( !is_readable( $file ) )
-            throw new FileException( 'Файл недоступен для чтения.', $file );
+            throw new FileException( 'Given file isn\'t readable.', $file );
 
-        // Является ли файл изображением
+        // Is it image?
 		$size = getimagesize( $file );
 		if( $size === false )
-            throw new ImageFileException( 'Файл не является изображением.', $file );
+            throw new ImageFileException( 'Given file isn\'t image.', $file );
 
-        // Определение формата изображения
+        // Retrieve image type
 		$format = strtolower( substr( $size['mime'], strpos( $size['mime'], '/' ) + 1 ) );
 		if($format === 'x-ms-bmp')
 			$format = 'wbmp';
 
-        // Есть ли функция, которая может открыть изображение
+        // Does function that opens this type exist?
 		$func = 'imagecreatefrom' . $format;
 		if( !function_exists( $func ) )
-            throw new ImageFileException( 'Нет подходящей функции для открытия изображения.', $file );
+            throw new ImageFileException( 'Unknown image type.', $file );
 
-        // Открытие изображения
+        // Open image file
         $bitmap = @$func( $file );
 		if( !$bitmap )
-            throw new ImageFileException( 'Не удалось открыть изображение. Возможно, не хватает оперативной памяти.', $file );
+            throw new ImageFileException( 'Can\'t open image file. Perhaps not enough RAM.', $file );
 
-        // Создание объекта изображения
+        // Create image object
         $image = new Image( $bitmap, in_array( $format, Array( 'png', 'gif' ) ) );
 
-        // Поворачивание на место повёрнутых JPEG-ов
+        // Rotate non-default oriended JPEG
 		if(
             function_exists( 'exif_read_data' ) &&
             is_array( $exif = @exif_read_data( $file, 0, true ) ) &&
@@ -126,32 +121,32 @@ class ImageFactory
 		return $image;
 	}
 
-
     /**
-     * Создаёт изображение на основе скриншота экрана.
+     * Craetes image from screenshot.
+     *
+     * Works only on windows (due to http://php.net/manual/en/function.imagegrabscreen.php#refsect1-function.imagegrabscreen-notes).
      *
      * @return Image
-     * @throws \Exception В случае непредвиденной ошибки
+     * @throws \Exception
      *
      * @since 1.0.5
      */
     public function screenshot()
     {
         if ( !function_exists( 'imagegrabscreen' ) )
-            throw new \Exception( 'Текущая сборка PHP не может делать скриншоты.' );
+            throw new \Exception( 'Current PHP assembly can\'t take screenshots.' );
 
         $bitmap = @imagegrabscreen();
         if ( !$bitmap )
-            throw new \Exception( 'Не удалось сделать скриншот по неизвестным причинам.' );
+            throw new \Exception( 'Can\'t take screenshot due to an unknown reason.' );
 
-        return new Image( $bitmap, true );
+        return new Image( $bitmap );
     }
 
-
     /**
-     * Расширяет ограничение на количество используемой скритом оперативной памяти сервера до установленного значения.
+     * Extend system memory limit to the given value (if current limit is lower).
      *
-     * @param int $minSize Количество байт
+     * @param int $minSize Amount of bytes
      */
     protected function extendMemoryLimit( $minSize )
     {
@@ -175,7 +170,7 @@ class ImageFactory
                     $curSize = $base * pow( 1024, 4 );
                     break;
                 case 'p':
-                    $curSize = $base * pow( 1024, 5 );  // Sometime this will also be not enough
+                    $curSize = $base * pow( 1024, 5 );  // Someday this will also be not enough
                     break;
                 default:
                     $curSize = 0;

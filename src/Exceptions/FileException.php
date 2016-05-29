@@ -5,19 +5,22 @@ namespace AigerTeam\ImageTools\Exceptions;
 /**
  * Class FileException
  *
- * Исключение, выбрасываемое при ошибке, связанной с работой с файлом.
+ * Thrown in case of a file error.
  *
  * @author Finesse
  * @package AigerTeam\ImageTools\Exceptions
  */
 class FileException extends \Exception
 {
+    /**
+     * Path to the file in the filesystem on which error has occured
+     */
     protected $path;
 
     /**
      * {@inheritDoc}
      *
-     * @param string|null $path Путь в файловой системе, на котором произошла ошибка
+     * @param string|null $path Path to the file in the filesystem on which error has occured
      */
     public function __construct( $message, $path = null, $code = 0, \Exception $previous = null )
     {
@@ -26,7 +29,7 @@ class FileException extends \Exception
     }
 
     /**
-     * @var string|null Возвращает путь в файловой системе, на котором произошла ошибка
+     * @return string|null Path to the file in the filesystem on which error has occured (if provided)
      */
     public function getPath()
     {
