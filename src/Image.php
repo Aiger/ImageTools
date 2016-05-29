@@ -10,8 +10,8 @@ if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
  * Class Image
  *
  * Object-oriented wrap for DG image that provides simple methods for image processing. This class uses immutable
- * object style. It means that none of methods changes object. Instead of it image-changing methods return the new
- * image object (if image is changed) or the original object (if image hasn't changed).
+ * object style. It means that none of methods changes object. Instead of that image-changing methods return the new
+ * image object (if image is changed) or the original object (if image isn't changed).
  *
  * A class instance can be created by:
  *  - passing DG resource to the class constructor;
@@ -780,7 +780,7 @@ class Image
      *
      * @since 1.0.2
      */
-    public function toUncertainFile( $dir, $name, $rewrite = false, $type = null, $quality = 1.0 )
+    public function toUncertainFile( $dir, $name = 'image', $rewrite = false, $type = null, $quality = 1.0 )
     {
         if ( empty( $type ) )
             $type = $this->getRecommendedType();
