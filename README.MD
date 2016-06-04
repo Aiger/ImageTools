@@ -79,11 +79,14 @@ $thumbsFiles = array_map( function( $size ) use ( $image, $watermark )
 
 ## Reference
 
+None of methods trigger errors or warnings. Instead of that they throw exceptions. If some of them triggers error please
+[report us](https://github.com/AigerTeam/ImageTools/issues/new).
+
 ### Creating Image object
 
 An `Image` object can be created by various ways.
 
-#### 1. Using one of the `ImageFactory` object method
+#### 1. Using one of the ImageFactory object method
 
 ```php
 use AigerTeam\ImageTools\ImageFactory;
@@ -92,9 +95,10 @@ $factory = new ImageFactory();
 $image = $factory->blank( 100, 150 );
 ```
 
-See PHPDoc in the `ImageFactory` class code to get the list of all image creating methods.
+See PHPDoc in the `ImageFactory` [class code](https://github.com/AigerTeam/ImageTools/blob/master/src/ImageFactory.php) 
+for more details and the list of all image creating methods.
 
-#### 2. Passing DG image resource to the `Image` constructor
+#### 2. Passing DG image resource to the Image constructor
 
 ```php
 use AigerTeam\ImageTools\Image;
@@ -130,7 +134,8 @@ $image
 	->toFile( 'image.jpg' );
 ```
 
-See PHPDoc in the `Image` class code to get the list of all methods.
+See PHPDoc in the `Image` [class code](https://github.com/AigerTeam/ImageTools/blob/master/src/Image.php) for more 
+details and the list of all methods.
 
 
 ## Version compatibility
