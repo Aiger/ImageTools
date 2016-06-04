@@ -10,8 +10,8 @@ if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
  * Class Image
  *
  * Object-oriented wrap for DG image that provides simple methods for image processing. This class uses immutable
- * object style. It means that none of methods changes object. Instead of that image-changing methods return the new
- * image object (if image is changed) or the original object (if image isn't changed).
+ * object style. It means that the image object can't be changed after creation, the result of any modifying method of
+ * an image object is the new image object.
  *
  * A class instance can be created by:
  *  - passing DG resource to the class constructor;
@@ -60,7 +60,8 @@ class Image
     protected $isTransparent = false;
 
     /**
-     * @param resource $bitmap Image DG resource
+     * @param resource $bitmap Image DG resource. It becomes this object own. So the resource can be modified and it
+     *  will be automatically destroyed on this object destruction.
      * @param bool $isTransparent Whether image resource has transparent pixels. Not significant argument, it's used
      *  only when output file format is selected.
      * @throws \InvalidArgumentException If given resource is not a DG resource
@@ -105,7 +106,9 @@ class Image
     }
 
     /**
-     * @return int Image width (px)
+     * Returns image width (px)
+     *
+     * @return int
      *
      * @since 1.0.0
      */
@@ -115,7 +118,9 @@ class Image
     }
 
     /**
-     * @return int Image height (px)
+     * Returns image height (px)
+     *
+     * @return int
      *
      * @since 1.0.0
      */
