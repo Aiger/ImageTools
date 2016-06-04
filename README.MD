@@ -16,7 +16,13 @@ Add this to the `composer.json` file:
 }
 ```
 
-or use composer require command:
+and then call:
+
+```sh
+composer install
+```
+
+Or use the composer require command:
 
 ```sh
 composer require aiger-team/image-tools
@@ -77,7 +83,7 @@ $thumbsFiles = array_map( function( $size ) use ( $image, $watermark )
 
 An `Image` object can be created by various ways.
 
-1. Using one of the `ImageFactory` object method:
+#### 1. Using one of the `ImageFactory` object method
 
 ```php
 use AigerTeam\ImageTools\ImageFactory;
@@ -88,7 +94,7 @@ $image = $factory->blank( 100, 150 );
 
 See PHPDoc in the `ImageFactory` class code to get the list of all image creating methods.
 
-2. Pass DG image resource to the `Image` constructor:
+#### 2. Passing DG image resource to the `Image` constructor
 
 ```php
 use AigerTeam\ImageTools\Image;
@@ -106,7 +112,7 @@ An `Image` object is immutable. Image methods that modify image return the new o
 not modified). So this code is **incorrect**:
 
 ```php
-// WRONG! Don't do it or you will be fired.
+// WRONG! Don't do this or you will be fired.
 $image->resize( 200, 150 );
 $image->toFile( 'image.jpg' );
 ```
