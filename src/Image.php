@@ -397,7 +397,7 @@ class Image
             return $this;
         }
 
-        $restLayersOpacity = ceil( $opacity ) - 1;
+        $restLayersOpacity = max( ceil( $opacity ) - 1, 0 );
         $firstLayerOpacity = $opacity - $restLayersOpacity;
 
         $bitmap = static::copyBitmap( $this->bitmap );
