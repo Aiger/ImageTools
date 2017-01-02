@@ -4,7 +4,7 @@ namespace AigerTeam\ImageTools;
 
 use AigerTeam\ImageTools\Exceptions\FileException;
 
-if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
+if ( !defined( 'IMAGETYPE_WEBP' )) define( 'IMAGETYPE_WEBP', 117 );
 
 /**
  * Class Image
@@ -17,7 +17,7 @@ if ( !defined( 'IMAGETYPE_WEBP' ) ) define( 'IMAGETYPE_WEBP', 117 );
  *  - passing DG resource to the class constructor;
  *  - calling a method of an ImageFactory object.
  *
- * @version 1.0.6
+ * @version 1.0.7
  * @author Finesse
  * @author maindefine
  * @package AigerTeam\ImageTools
@@ -60,7 +60,7 @@ class Image
     protected $isTransparent = false;
 
     /**
-     * @param resource $bitmap Image DG resource. It becomes this object own. So the resource can be modified and it
+     * @param resource $bitmap Image DG resource. It becomes this object own. So the resource can be modified here. It
      *  will be automatically destroyed on this object destruction.
      * @param bool $isTransparent Whether image resource has transparent pixels. Not significant argument, it's used
      *  only when output file format is selected.
@@ -387,39 +387,30 @@ class Image
      */
     function setOpacity( $opacity )
     {
-        if ( !is_numeric( $opacity ) )
+        if ( !is_numeric( $opacity )) {
             throw new \InvalidArgumentException( 'Argument $opacity expected to be number, ' . gettype( $opacity ) . ' given.' );
+        }
 
         $opacity = max( 0, $opacity );
 
-        if ( $opacity == 1 )
+        if ( $opacity == 1 ) {
             return $this;
+        }
 
-        $width  = $this->getWidth();
-        $height = $this->getHeight();
+        $restLayersOpacity = ceil( $opacity ) - 1;
+        $firstLayerOpacity = $opacity - $restLayersOpacity;
+
         $bitmap = static::copyBitmap( $this->bitmap );
-
-        for ( $x = 0; $x < $width; ++$x )
-            for ( $y = 0; $y < $height; ++$y ) {
-                $color = imagecolorat( $bitmap, $x, $y );
-                $transparency = ( $color >> 24 ) & 0x7F;
-
-                if ( $transparency == 127 || $opacity > 1 && $transparency == 0 )
-                    continue;
-
-                $transparency /= 127;
-
-                if ( $opacity < 1 )
-                    $transparency = 1 - (1 - $transparency) * $opacity;
-                else
-                    $transparency = pow( $transparency, $opacity );
-
-                $color = ( $color & 0xFFFFFF ) | ( (int)round( $transparency * 127 ) << 24 );
-                imagesetpixel( $bitmap, $x, $y, $color );
-            }
+        $transparency = 1 - $firstLayerOpacity;
+        imagefilter( $bitmap, IMG_FILTER_COLORIZE, 0, 0, 0, 127 * $transparency );
 
         $newImage = static::construct( $bitmap );
         $newImage->isTransparent = true;
+
+        for ( $i = 0; $i < $restLayersOpacity; ++$i ) {
+            $newImage = $newImage->insertImage( $this );
+        }
+
         return $newImage;
     }
 
@@ -1095,11 +1086,13 @@ class Image
      */
     protected static function copyBitmap( $bitmap )
     {
-        if ( !is_resource( $bitmap ) )
+        if ( !is_resource( $bitmap )) {
             throw new \InvalidArgumentException( 'Argument $bitmap expected to be resource, ' . gettype( $bitmap ) . 'given.' );
+        }
 
-        if ( get_resource_type( $bitmap ) !== 'gd' )
+        if ( get_resource_type( $bitmap ) !== 'gd' ) {
             throw new \InvalidArgumentException( 'The resource from the $bitmap argument is not image resource.' );
+        }
 
         $width  = @imagesx( $bitmap );
         $height = @imagesy( $bitmap );
@@ -1114,8 +1107,9 @@ class Image
         @imagealphablending( $bitmap2, false );
         $result = @imagecopy( $bitmap2, $bitmap, 0, 0, 0, 0, $width, $height );
 
-        if ( !$bitmap2 || !$result )
+        if ( !$bitmap2 || !$result ) {
             throw new \Exception( 'Can\'t copy image resource. Perhaps not enough RAM.' );
+        }
 
         return $bitmap2;
     }

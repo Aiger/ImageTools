@@ -12,7 +12,7 @@ Add this to the `composer.json` file:
 
 ```json
 "require": {
-  "aiger-team/image-tools": "1.0.*"
+  "aiger-team/image-tools": "~1.0.7"
 }
 ```
 
@@ -107,7 +107,7 @@ $resource = imagecreatetruecolor( 100, 150 );
 $image = new Image( $resource );
 ```
 
-The resource passed to the constructor become an `Image` object own. So the resource can be modified inside the 
+The resource passed to the constructor becomes an `Image` object own. So the resource can be modified inside the 
 constructor and the resource will be automatically destroyed on the `Image` object destruction.
 
 ### Processing an image
@@ -142,7 +142,7 @@ details and the list of all methods.
 
 Versions are backward compatible within minor versions. For example versions `1.1.3` and `1.1.5` are backward compatible,
 but versions `1.1.3` and `1.2.1` may be not compatible. So we advice you to set specific minor version in the composer 
-configuration, for example `1.0.*`.
+configuration, for example `~1.0.7`.
 
 
 ## License

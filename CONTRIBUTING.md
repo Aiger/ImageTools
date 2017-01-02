@@ -14,4 +14,4 @@ Comments in the code should be written in English.
 Please follow ImageTools principles:
 
 * `Image` object is immutable.
-* In case of error methods should always throw exceptions, not errors or warnings.
+* Methods should always throw exceptions in case of error. Methods mustn't trigger errors or warnings.

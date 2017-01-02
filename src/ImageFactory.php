@@ -10,7 +10,7 @@ use AigerTeam\ImageTools\Exceptions\ImageFileException;
  *
  * Image factory. Creates images by various ways.
  *
- * @version 1.0.6
+ * @version 1.0.7
  * @author Finesse
  * @package AigerTeam\ImageTools
  */
@@ -75,43 +75,43 @@ class ImageFactory
         @clearstatcache( true, $file );
 
         // Does file exist?
-        if ( !file_exists( $file ) || !is_file( $file ) )
+        if ( !file_exists( $file ) || !is_file( $file ))
             throw new FileException( 'Given file doesn\'t exist or not a file.', $file );
 
         // Is it readable?
-        if ( !is_readable( $file ) )
+        if ( !is_readable( $file ))
             throw new FileException( 'Given file isn\'t readable.', $file );
 
         // Is it image?
 		$size = getimagesize( $file );
-		if( $size === false )
-            throw new ImageFileException( 'Given file isn\'t image.', $file );
+		if ( $size === false )
+            throw new ImageFileException( 'Given file isn\'t an image.', $file );
 
         // Retrieve image type
 		$format = strtolower( substr( $size['mime'], strpos( $size['mime'], '/' ) + 1 ) );
-		if($format === 'x-ms-bmp')
+		if ($format === 'x-ms-bmp')
 			$format = 'wbmp';
 
         // Does function that opens this type exist?
 		$func = 'imagecreatefrom' . $format;
-		if( !function_exists( $func ) )
+		if ( !function_exists( $func ) )
             throw new ImageFileException( 'Unknown image type.', $file );
 
         // Open image file
         $bitmap = @$func( $file );
-		if( !$bitmap )
+		if ( !$bitmap )
             throw new ImageFileException( 'Can\'t open image file. Perhaps not enough RAM.', $file );
 
         // Create image object
         $image = new Image( $bitmap, in_array( $format, Array( 'png', 'gif' ) ) );
 
         // Rotate non-default oriended JPEG
-		if(
+		if (
             function_exists( 'exif_read_data' ) &&
-            is_array( $exif = @exif_read_data( $file, 0, true ) ) &&
-            isset( $exif[ 'IFD0' ][ 'Orientation' ] )
+            is_array( $exif = @exif_read_data( $file, 0, true )) &&
+            isset( $exif[ 'IFD0' ][ 'Orientation' ])
         ) {
-			switch( $exif[ 'IFD0' ][ 'Orientation' ] ) {
+			switch( $exif[ 'IFD0' ][ 'Orientation' ]) {
 				case 8: $image = $image->rotate(  90 ); break;
 				case 3: $image = $image->rotate( 180 ); break;
 				case 6: $image = $image->rotate( -90 ); break;
