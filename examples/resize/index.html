@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Масштабирование изображения</title>
+		<title>Image scaling</title>
 		<meta charset="utf-8" />
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
 	</head>
 
 	<body>
-		<h2>Масштабирование изображения</h2>
+		<h2>Image scaling</h2>
 		
 		<table>
 			<tr>
-				<td>Ширина:</td>
+				<td>Width:</td>
 				<td><input type="range" min="10" max="800" value="400" id="width" /></td>
 			</tr>
 			<tr>
-				<td>Высота:</td>
+				<td>Height:</td>
 				<td><input type="range" min="10" max="800" value="250" id="height" /></td>
 			</tr>
 			<tr>
 				<td></td>
 				<td>
-					<label><input type="checkbox" id="allowIncrease" /> Позволять увеличивать</label>
+					<label><input type="checkbox" id="allowIncrease" /> Allow increase</label>
 				</td>
 			</tr>
 			<tr>
-				<td>Способ масштабирования:</td>
+				<td>Scaling style:</td>
 				<td>
 					<select id="sizing">
 						<option value="contain">Contain</option>
@@ -36,18 +35,18 @@
 				</td>
 			</tr>
 			<tr>
-				<td>Выравнивание по-горизонтали:</td>
+				<td>Horizontal align:</td>
 				<td><input type="range" min="0" max="1" value="0.5" step="0.001" id="alignHor" /></td>
-				<td>(только для способа масштабирования cover)</td>
+				<td>(only for the cover scalign style)</td>
 			</tr>
 			<tr>
-				<td>Выравнивание по-вертикали:</td>
+				<td>Vertical align:</td>
 				<td><input type="range" min="0" max="1" value="0.5" step="0.001" id="alignVer" /></td>
-				<td>(только для способа масштабирования cover)</td>
+				<td>(only for the cover scalign style)</td>
 			</tr>
 			<tr>
 				<td></td>
-				<td><button id="go">Сгенерировать</button></td>
+				<td><button id="go">Generate</button></td>
 			</tr>
 		</table>
 
@@ -55,20 +54,26 @@
 	</body>
 
 	<script>
-
-		$( '#go' ).click( function( event ) {
-			$( '#display' ).attr({
-				src: 'image.php?' + $.param({
-					width: $( '#width' ).val(),
-					height: $( '#height' ).val(),
-					allowIncrease: $( '#allowIncrease' ).prop( 'checked' ) ? 1 : 0,
-					sizing: $( '#sizing' ).val(),
-					alignHor: $( '#alignHor' ).val(),
-					alignVer: $( '#alignVer' ).val()
-				})
-			});
+		document.getElementById( 'go' ).addEventListener( 'click', function( event )
+		{
 			event.preventDefault();
-		} ).triggerHandler( 'click' );
 
+			var params = {
+				width: document.getElementById( 'width' ).value,
+				height: document.getElementById( 'height' ).value,
+				allowIncrease: document.getElementById( 'allowIncrease' ).checked ? 1 : 0,
+				sizing: document.getElementById( 'sizing' ).value,
+				alignHor: document.getElementById( 'alignHor' ).value,
+				alignVer: document.getElementById( 'alignVer' ).value
+			};
+
+			document.getElementById( 'display' ).src = 'image.php?' + Object.keys( params )
+				.map( function( param ) {
+					return param + '=' + encodeURIComponent( params[ param ]);
+				})
+				.join( '&' );
+		});
+
+		document.getElementById( 'go' ).click();
 	</script>
 </html>
