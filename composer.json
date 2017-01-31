@@ -32,7 +32,11 @@
         }
     ],
     "require": {
-        "php": ">=5.3"
+        "php": ">=5.3",
+        "ext-gd": "*"
+    },
+    "suggest": {
+        "ext-exif": "Automatically rotate photos with an accelerometer data"
     },
     "autoload": {
         "psr-4": { "AigerTeam\\ImageTools\\": "src/" }
