@@ -3,8 +3,8 @@
     "type": "library",
     "description": "Light image editing tool with immutable objects style",
     "keywords": [
-        "images",
-        "pictures",
+        "image",
+        "picture",
         "modify",
         "edit",
         "resize",

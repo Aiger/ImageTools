@@ -41,10 +41,10 @@ Resize an image:
 ```php
 use AigerTeam\ImageTools\ImageFactory;
 
-( new ImageFactory() )
-	->openFile( 'image.jpg' )
-	->resize( 600, 500 )
-	->toFile( 'image-resized.jpg' );
+(new ImageFactory())
+	->openFile('image.jpg')
+	->resize(600, 500)
+	->toFile('image-resized.jpg');
 ```
 
 Create a few thumbnails from an uploaded image and put a watermark on some of them:
@@ -54,26 +54,27 @@ use AigerTeam\ImageTools\ImageFactory;
 
 // List of thumb to create. The values are width, height and "put watermark?".
 $thumbsSizes = [
-	[ 150, 80, false ],
-	[ 300, 200, true ],
-	[ 500, 400, true ]
+	[150, 80, false],
+	[300, 200, true],
+	[500, 400, true]
 ];
 
 // Open uploaded image and watermark image
 $factory   = new ImageFactory();
-$image     = $factory->openFile( $_FILES[ 'image' ][ 'tmp_name' ] );
-$watermark = $factory->openFile( 'watermark.png' );
+$image     = $factory->openFile($_FILES['image']['tmp_name']);
+$watermark = $factory->openFile('watermark.png');
 
 // Make thumbs
-$thumbsFiles = array_map( function( $size ) use ( $image, $watermark )
+$thumbsFiles = array_map(function($size) use ($image, $watermark)
 {
-	$thumb = $image->resize( $size[0], $size[1], false, $image::SIZING_COVER );	// Original $image is not modified so thumbs may be created in any order
+	$thumb = $image->resize($size[0], $size[1], false, $image::SIZING_COVER);	// Original $image is not modified so thumbs may be created in any order
 	
-	if ( $size[2] )
-		$thumb = $thumb->stamp( $watermark, 0.2 );	// Watermark size is relative, not pixel
+	if ($size[2]) {
+		$thumb = $thumb->stamp($watermark, 0.2);	// Watermark size is relative, not pixel
+	}
 		
-	return $thumb->toUncertainFile( 'uploads/thumbs' );	// File name and format is set automatically
-}, $thumbSizes );
+	return $thumb->toUncertainFile('uploads/thumbs');	// File name and format is set automatically
+}, $thumbSizes);
 ```
 
 
@@ -92,7 +93,7 @@ An `Image` object can be created by various ways.
 use AigerTeam\ImageTools\ImageFactory;
 
 $factory = new ImageFactory();
-$image = $factory->blank( 100, 150 );
+$image = $factory->blank(100, 150);
 ```
 
 See the PHPDoc in the `ImageFactory` [class code](https://github.com/AigerTeam/ImageTools/blob/master/src/ImageFactory.php) 
@@ -103,8 +104,8 @@ for more details and the list of all image creating methods.
 ```php
 use AigerTeam\ImageTools\Image;
 
-$resource = imagecreatetruecolor( 100, 150 );
-$image = new Image( $resource );
+$resource = imagecreatetruecolor(100, 150);
+$image = new Image($resource);
 ```
 
 The resource passed to the constructor becomes an `Image` object own. So the resource can be modified inside the 
@@ -117,21 +118,21 @@ not modified). So this code is **incorrect**:
 
 ```php
 // WRONG! Don't do this or you will be fired.
-$image->resize( 200, 150 );
-$image->toFile( 'image.jpg' );
+$image->resize(200, 150);
+$image->toFile('image.jpg');
 ```
 
 This one is **correct**:
 
 ```php
 // Variant 1
-$image = $image->resize( 200, 150 );
-$image->toFile( 'image.jpg' );
+$image = $image->resize(200, 150);
+$image->toFile('image.jpg');
 
 // Variant 2
 $image
-	->resize( 200, 150 )
-	->toFile( 'image.jpg' );
+	->resize(200, 150)
+	->toFile('image.jpg');
 ```
 
 See the PHPDoc in the `Image` [class code](https://github.com/AigerTeam/ImageTools/blob/master/src/Image.php) for more 
